@@ -1,0 +1,15 @@
+Django>=5.0,<5.1
+djangorestframework
+djangorestframework-simplejwt
+dj-rest-auth==6.0.0
+django-allauth==0.63.0
+# Видаляємо django-filter, оскільки пошук/фільтрація перенесені на Contentful
+# django-filter 
+Pillow
+psycopg2-binary
+django-cors-headers
+requests==2.32.3
+django-environ
+contentful
+gunicorn==21.2.0
+whitenoise==6.6.0

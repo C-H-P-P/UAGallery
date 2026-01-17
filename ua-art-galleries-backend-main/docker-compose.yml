@@ -1,0 +1,53 @@
+# version: '3.8'
+
+services:
+  # ❌ ЛОКАЛЬНА БД НАМ БІЛЬШЕ НЕ ТРЕБА (закоментував її)
+  # db:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=${DB_NAME}
+  #     - POSTGRES_USER=${DB_USER}
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   env_file:
+  #     - .env
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+
+  # === BACKEND (Django) ===
+  backend:
+    build: ./backend
+    # 👇 ЗМІНА 1: Прибрали wait-for-db.sh. Neon працює завжди, чекати не треба.
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    # 👇 ЗМІНА 2: Вказуємо шлях до .env (переконайся, що файл лежить саме там)
+    # Якщо .env лежить в папці backend, то шлях: ./backend/.env
+    # Якщо в корені (біля docker-compose), то просто: .env
+    env_file:
+      - ./backend/.env 
+    
+    # 👇 ЗМІНА 3: Очистили environment. 
+    # Docker сам візьме все з файлу .env. Дублювати змінні тут НЕБЕЗПЕЧНО, 
+    # бо вони можуть перекрити налаштування Neon.
+    # environment:
+      # - DJANGO_DEBUG=${DJANGO_DEBUG}
+      
+    # 👇 ЗМІНА 4: Прибрали залежність від локальної бази
+    # depends_on:
+    #   db:
+    #     condition: service_healthy 
+    
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
