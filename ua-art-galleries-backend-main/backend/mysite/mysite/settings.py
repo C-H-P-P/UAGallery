@@ -74,8 +74,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # Має бути якомога вище
     'django.middleware.common.CommonMiddleware',
     
     # ⚠️ УВАГА: Вимикати CSRF — це погана практика, якщо ви використовуєте Cookies.
