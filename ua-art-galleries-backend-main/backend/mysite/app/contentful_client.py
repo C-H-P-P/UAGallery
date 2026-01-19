@@ -102,6 +102,8 @@ def fetch_gallery_by_slug(slug: str):
             "founders": fields.get('founders', ''),
             "curators": fields.get('curators', ''),
             "artists": fields.get('artistsList', []), # Це може бути список імен або зв'язаних об'єктів
+            "address": fields.get('address', ''), 
+            "year": fields.get('foundingYear', ''),
             "contacts": {
                 "email": fields.get('email', ''),
                 "phone": fields.get('phone', ''),
