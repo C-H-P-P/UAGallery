@@ -36,14 +36,16 @@ else:
     ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS')
     CORS_ALLOW_ALL_ORIGINS = False
     # Дозволяємо запити тільки з вашого Vercel та локальних адрес
-    CORS_ALLOWED_ORIGINS = [FRONTEND_URL] + env.list('CORS_ALLOWED_ORIGINS', default=[])
+    CCORS_ALLOWED_ORIGINS = [
+    "https://ua-art-galleries-frontend.vercel.app",
+    "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app",
+    "http://localhost:5173",
+]
 
 # Налаштування CSRF (Критично для POST запитів та авторизації)
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8000",
-    FRONTEND_URL,
+    "https://ua-art-galleries-frontend.vercel.app",
+    "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app",
 ]
 
 # Дозволяємо передачу токенів/кук через CORS
