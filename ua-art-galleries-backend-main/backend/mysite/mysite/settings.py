@@ -25,27 +25,31 @@ SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-dev-key-very-secr
 
 DEBUG = env('DJANGO_DEBUG')
 
-# Домен вашого фронтенду на Vercel
-FRONTEND_URL = "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app"
+# Домени вашого фронтенду на Vercel
+FRONTEND_URL = "https://ua-art-galleries-frontend.vercel.app"
+FRONTEND_PREVIEW_URL = "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app"
 
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     # Дозволяємо хости самого бекенду
-    ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS')
+    ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['uagallery.onrender.com'])
     CORS_ALLOW_ALL_ORIGINS = False
-    # Дозволяємо запити тільки з вашого Vercel та локальних адрес
-    CCORS_ALLOWED_ORIGINS = [
-    "https://ua-art-galleries-frontend.vercel.app",
-    "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app",
-    "http://localhost:5173",
-]
+    
+    # Виправлено: правильна назва змінної CORS_ALLOWED_ORIGINS
+    CORS_ALLOWED_ORIGINS = [
+        FRONTEND_URL,
+        FRONTEND_PREVIEW_URL,
+        "http://localhost:5173",
+    ] + env.list('CORS_ALLOWED_ORIGINS', default=[])
 
 # Налаштування CSRF (Критично для POST запитів та авторизації)
 CSRF_TRUSTED_ORIGINS = [
-    "https://ua-art-galleries-frontend.vercel.app",
-    "https://ua-art-galleries-frontend-lr9xu4dox-jurius456s-projects.vercel.app",
+    FRONTEND_URL,
+    FRONTEND_PREVIEW_URL,
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 # Дозволяємо передачу токенів/кук через CORS
@@ -80,7 +84,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', # Для статичних файлів на Render
-    'corsheaders.middleware.CorsMiddleware',      # МАЄ БУТИ ПЕРЕД CommonMiddleware
+    'corsheaders.middleware.CorsMiddleware',      # МАЄ БУТИ ТУТ
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -112,7 +116,7 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 # === DATABASE ===
 
 DATABASES = {
-    'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER')}:{env('DB_PASSWORD')}@{env('DB_HOST')}:{env('DB_PORT')}/{env('DB_NAME')}")
+    'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', 'user')}:{env('DB_PASSWORD', 'pass')}@{env('DB_HOST', 'localhost')}:{env('DB_PORT', '5432')}/{env('DB_NAME', 'db')}")
 }
 DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
@@ -145,7 +149,7 @@ REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'access',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh',
-    'JWT_AUTH_HTTPONLY': False, # Змініть на True, якщо хочете більше безпеки для кук
+    'JWT_AUTH_HTTPONLY': False,
 }
 
 ACCOUNT_AUTHENTICATION_METHOD = "username"
@@ -155,6 +159,6 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 
 # === EXTERNAL APIS ===
 
-CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID')
-CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN')
+CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
+CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
 CONTENTFUL_ENVIRONMENT = env('CONTENTFUL_ENVIRONMENT', default='master')
