@@ -1,6 +1,6 @@
 """
 Django settings for mysite project.
-PRO VERSION: Optimized for Render (Backend) and Vercel (Frontend).
+PRO VERSION: Final Stable Version for Render and Vercel.
 """
 
 from pathlib import Path
@@ -33,11 +33,11 @@ if DEBUG:
     ALLOWED_HOSTS = ["*"]
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # Дозволяємо хости самого бекенду
+    # Використовуємо .list для коректного зчитування списку
     ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['uagallery.onrender.com'])
     CORS_ALLOW_ALL_ORIGINS = False
     
-    # Виправлено: правильна назва змінної CORS_ALLOWED_ORIGINS
+    # ВИПРАВЛЕНО: назва змінної має бути CORS_ALLOWED_ORIGINS
     CORS_ALLOWED_ORIGINS = [
         FRONTEND_URL,
         FRONTEND_PREVIEW_URL,
@@ -83,8 +83,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # Для статичних файлів на Render
-    'corsheaders.middleware.CorsMiddleware',      # МАЄ БУТИ ТУТ
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -96,27 +96,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'mysite.urls'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
 # === DATABASE ===
-
+# ВИПРАВЛЕНО: додано default= у виклики env() всередині f-string
 DATABASES = {
-    'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', 'user')}:{env('DB_PASSWORD', 'pass')}@{env('DB_HOST', 'localhost')}:{env('DB_PORT', '5432')}/{env('DB_NAME', 'db')}")
+    'default': env.db('DATABASE_URL', default=f"postgres://{env('DB_USER', default='user')}:{env('DB_PASSWORD', default='pass')}@{env('DB_HOST', default='localhost')}:{env('DB_PORT', default='5432')}/{env('DB_NAME', default='db')}")
 }
 DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
