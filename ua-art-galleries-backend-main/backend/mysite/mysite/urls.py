@@ -7,7 +7,7 @@ from django.conf.urls.static import static
 # Зверни увагу: Django бачить це як 'mysite.app.views' або просто 'app.views', 
 # залежно від налаштувань. Якщо виникне помилка імпорту - скажи.
 from app.views import GalleryListView, GalleryDetailView 
-from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView
+from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView, ChangePasswordView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),
     path('api/auth/register/', MinimalRegisterView.as_view(), name='register'),
     path('api/auth/user/', UserDetailView.as_view(), name='user_detail'),
+    path('api/auth/change-password/', ChangePasswordView.as_view(), name='change-password'),
 ]
 
 if settings.DEBUG:

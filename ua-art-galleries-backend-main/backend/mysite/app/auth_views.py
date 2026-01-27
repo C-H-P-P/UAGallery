@@ -94,3 +94,57 @@ class UserDetailView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+        new_password_confirm = request.data.get("new_password_confirm")
+
+        # Валідація: всі поля обов'язкові
+        if not current_password or not new_password or not new_password_confirm:
+            return Response(
+                {"detail": "Всі поля обов'язкові для заповнення"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Валідація: перевірка поточного пароля
+        if not request.user.check_password(current_password):
+            return Response(
+                {"detail": "Поточний пароль невірний"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Валідація: новий пароль має співпадати з підтвердженням
+        if new_password != new_password_confirm:
+            return Response(
+                {"detail": "Нові паролі не співпадають"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Валідація: мінімальна довжина пароля
+        if len(new_password) < 8:
+            return Response(
+                {"detail": "Пароль має містити мінімум 8 символів"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Валідація: новий пароль не може бути таким самим як поточний
+        if current_password == new_password:
+            return Response(
+                {"detail": "Новий пароль має відрізнятися від поточного"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Зміна пароля (автоматично хешується)
+        request.user.set_password(new_password)
+        request.user.save()
+
+        return Response(
+            {"detail": "Пароль успішно змінено"},
+            status=status.HTTP_200_OK,
+        )
