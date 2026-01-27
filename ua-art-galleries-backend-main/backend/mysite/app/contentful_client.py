@@ -55,22 +55,42 @@ def fetch_all_galleries():
             cover_image = fields.get('coverImage')
             image_url = _get_image_url(cover_image)
 
-            # Обробка JSON поля socialLinks (якщо воно пусте — повертаємо пустий список)
+            # Обробка JSON поля socialLinks
             social_links = fields.get('socialLinks', {})
             if social_links is None: 
                 social_links = {}
             
             results.append({
                 "id": item.sys.get('id'),
-                "name": fields.get('name', ''),
                 "slug": fields.get('slug', ''),
-                "city": fields.get('city', ''),
-                "address": fields.get('address', ''),
+                "status": True,  # За замовчуванням активна, якщо немає поля в Contentful
+                "name_ua": fields.get('name', ''),  # Припускаємо, що name - це UA
+                "name_en": fields.get('name', ''),  # Якщо немає окремого EN поля
                 "image": image_url,
-                # Тут структура залежить від того, як ти заповнюєш JSON в адмінці Contentful
-                "socials": social_links.get('links', []), 
-                "short_desc": fields.get('shortDescription', ''),
-                "year": fields.get('foundingYear')
+                "cover_image": image_url,
+                "short_description_ua": fields.get('shortDescription', ''),
+                "short_description_en": fields.get('shortDescription', ''),
+                "full_description_ua": fields.get('description', ''),
+                "full_description_en": fields.get('description', ''),
+                "specialization_ua": fields.get('specialization', ''),
+                "specialization_en": fields.get('specialization', ''),
+                "city_ua": fields.get('city', ''),
+                "city_en": fields.get('city', ''),
+                "address_ua": fields.get('address', ''),
+                "address_en": fields.get('address', ''),
+                "founders_ua": fields.get('founders', ''),
+                "founders_en": fields.get('founders', ''),
+                "curators_ua": fields.get('curators', ''),
+                "curators_en": fields.get('curators', ''),
+                "artists_ua": fields.get('artists', ''),
+                "artists_en": fields.get('artists', ''),
+                "email": fields.get('email', ''),
+                "phone": fields.get('phone', ''),
+                "website": fields.get('websiteUrl', ''),
+                "social_links": social_links,
+                "founding_year": str(fields.get('foundingYear', '')) if fields.get('foundingYear') else '',
+                "created_at": item.sys.get('created_at'),
+                "updated_at": item.sys.get('updated_at')
             })
         return results
     except Exception as e:
@@ -95,22 +115,47 @@ def fetch_gallery_by_slug(slug: str):
             
         item = entries[0]
         fields = item.fields()
+        
+        # Обробка картинки
+        cover_image = fields.get('coverImage')
+        image_url = _get_image_url(cover_image)
+        
+        # Обробка JSON поля socialLinks
+        social_links = fields.get('socialLinks', {})
+        if social_links is None: 
+            social_links = {}
 
         return {
-            "name": fields.get('name', ''),
-            "description": fields.get('description', {}), # Поверне Rich Text JSON
-            "founders": fields.get('founders', ''),
-            "curators": fields.get('curators', ''),
-            "artists": fields.get('artistsList', []), # Це може бути список імен або зв'язаних об'єктів
-            "address": fields.get('address', ''), 
-            "year": fields.get('foundingYear', ''),
-            "contacts": {
-                "email": fields.get('email', ''),
-                "phone": fields.get('phone', ''),
-                "website": fields.get('websiteUrl', '')
-            },
-             # Додаємо картинку і сюди, раптом треба на сторінці деталізації
-            "image": _get_image_url(fields.get('coverImage'))
+            "id": item.sys.get('id'),
+            "slug": fields.get('slug', ''),
+            "status": True,
+            "name_ua": fields.get('name', ''),
+            "name_en": fields.get('name', ''),
+            "image": image_url,
+            "cover_image": image_url,
+            "short_description_ua": fields.get('shortDescription', ''),
+            "short_description_en": fields.get('shortDescription', ''),
+            "full_description_ua": fields.get('description', ''),
+            "full_description_en": fields.get('description', ''),
+            "specialization_ua": fields.get('specialization', ''),
+            "specialization_en": fields.get('specialization', ''),
+            "city_ua": fields.get('city', ''),
+            "city_en": fields.get('city', ''),
+            "address_ua": fields.get('address', ''),
+            "address_en": fields.get('address', ''),
+            "founders_ua": fields.get('founders', ''),
+            "founders_en": fields.get('founders', ''),
+            "curators_ua": fields.get('curators', ''),
+            "curators_en": fields.get('curators', ''),
+            "artists_ua": fields.get('artists', ''),
+            "artists_en": fields.get('artists', ''),
+            "email": fields.get('email', ''),
+            "phone": fields.get('phone', ''),
+            "website": fields.get('websiteUrl', ''),
+            "social_links": social_links,
+            "founding_year": str(fields.get('foundingYear', '')) if fields.get('foundingYear') else '',
+            "created_at": item.sys.get('created_at'),
+            "updated_at": item.sys.get('updated_at')
         }
     except Exception as e:
         logger.error(f"❌ Error fetching gallery by slug '{slug}': {e}")
