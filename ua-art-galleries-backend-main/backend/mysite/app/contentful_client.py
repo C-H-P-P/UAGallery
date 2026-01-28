@@ -44,54 +44,81 @@ def fetch_all_galleries():
         return []
 
     try:
-        # include=1 дозволяє зразу підтягнути пов'язані картинки, щоб не було помилок
-        entries = client.entries({'content_type': 'project', 'include': 1})
         results = []
-
-        for item in entries:
-            fields = item.fields()
-            
-            # Обробка картинки
-            cover_image = fields.get('coverImage')
-            image_url = _get_image_url(cover_image)
-
-            # Обробка JSON поля socialLinks
-            social_links = fields.get('socialLinks', {})
-            if social_links is None: 
-                social_links = {}
-            
-            results.append({
-                "id": item.sys.get('id'),
-                "slug": fields.get('slug', ''),
-                "status": True,  # За замовчуванням активна, якщо немає поля в Contentful
-                "name_ua": fields.get('name', ''),  # Припускаємо, що name - це UA
-                "name_en": fields.get('name', ''),  # Якщо немає окремого EN поля
-                "image": image_url,
-                "cover_image": image_url,
-                "short_description_ua": fields.get('shortDescription', ''),
-                "short_description_en": fields.get('shortDescription', ''),
-                "full_description_ua": fields.get('description', ''),
-                "full_description_en": fields.get('description', ''),
-                "specialization_ua": fields.get('specialization', ''),
-                "specialization_en": fields.get('specialization', ''),
-                "city_ua": fields.get('city', ''),
-                "city_en": fields.get('city', ''),
-                "address_ua": fields.get('address', ''),
-                "address_en": fields.get('address', ''),
-                "founders_ua": fields.get('founders', ''),
-                "founders_en": fields.get('founders', ''),
-                "curators_ua": fields.get('curators', ''),
-                "curators_en": fields.get('curators', ''),
-                "artists_ua": fields.get('artists', ''),
-                "artists_en": fields.get('artists', ''),
-                "email": fields.get('email', ''),
-                "phone": fields.get('phone', ''),
-                "website": fields.get('websiteUrl', ''),
-                "social_links": social_links,
-                "founding_year": str(fields.get('foundingYear', '')) if fields.get('foundingYear') else '',
-                "created_at": item.sys.get('created_at'),
-                "updated_at": item.sys.get('updated_at')
+        limit = 1000  # Максимальний ліміт Contentful API
+        skip = 0
+        total_fetched = 0
+        
+        # Пагінація: отримуємо всі галереї порціями
+        while True:
+            # include=1 дозволяє зразу підтягнути пов'язані картинки, щоб не було помилок
+            entries = client.entries({
+                'content_type': 'project', 
+                'include': 1, 
+                'limit': limit,
+                'skip': skip
             })
+            
+            # Якщо нічого не прийшло, виходимо з циклу
+            if not entries or len(entries) == 0:
+                break
+            
+            for item in entries:
+                fields = item.fields()
+                
+                # Обробка картинки
+                cover_image = fields.get('coverImage')
+                image_url = _get_image_url(cover_image)
+
+                # Обробка JSON поля socialLinks
+                social_links = fields.get('socialLinks', {})
+                if social_links is None: 
+                    social_links = {}
+                
+                results.append({
+                    "id": item.sys.get('id'),
+                    "slug": fields.get('slug', ''),
+                    "status": True,  # За замовчуванням активна, якщо немає поля в Contentful
+                    "name_ua": fields.get('name', ''),  # Припускаємо, що name - це UA
+                    "name_en": fields.get('name', ''),  # Якщо немає окремого EN поля
+                    "image": image_url,
+                    "cover_image": image_url,
+                    "short_description_ua": fields.get('shortDescription', ''),
+                    "short_description_en": fields.get('shortDescription', ''),
+                    "full_description_ua": fields.get('description', ''),
+                    "full_description_en": fields.get('description', ''),
+                    "specialization_ua": fields.get('specialization', ''),
+                    "specialization_en": fields.get('specialization', ''),
+                    "city_ua": fields.get('city', ''),
+                    "city_en": fields.get('city', ''),
+                    "address_ua": fields.get('address', ''),
+                    "address_en": fields.get('address', ''),
+                    "founders_ua": fields.get('founders', ''),
+                    "founders_en": fields.get('founders', ''),
+                    "curators_ua": fields.get('curators', ''),
+                    "curators_en": fields.get('curators', ''),
+                    "artists_ua": fields.get('artists', ''),
+                    "artists_en": fields.get('artists', ''),
+                    "email": fields.get('email', ''),
+                    "phone": fields.get('phone', ''),
+                    "website": fields.get('websiteUrl', ''),
+                    "social_links": social_links,
+                    "founding_year": str(fields.get('foundingYear', '')) if fields.get('foundingYear') else '',
+                    "created_at": item.sys.get('created_at'),
+                    "updated_at": item.sys.get('updated_at')
+                })
+            
+            total_fetched = len(entries)
+            logger.info(f"✅ Fetched {total_fetched} galleries (skip={skip})")
+            
+            # Якщо отримали меншеніж ліміт, значить це остання сторінка
+            if total_fetched < limit:
+                break
+                
+            # Переходимо до наступної сторінки
+            skip += limit
+        
+        logger.info(f"✅ Total galleries fetched: {len(results)}")
         return results
     except Exception as e:
         logger.error(f"❌ Error fetching galleries: {e}")

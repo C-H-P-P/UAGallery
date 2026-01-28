@@ -11,6 +11,19 @@ class GalleryListView(APIView):
     """
     def get(self, request):
         data = fetch_all_galleries()
+
+        # Якщо користувач залогінений, додаємо інформацію про улюблені
+        favorite_slugs = set()
+        if request.user.is_authenticated:
+            favorite_slugs = set(
+                FavoriteGallery.objects.filter(user=request.user)
+                .values_list('gallery__slug', flat=True)
+            )
+
+        # Проходимося по всім галереям і додаємо прапорець
+        for gallery in data:
+            gallery['is_favorite'] = gallery['slug'] in favorite_slugs
+
         return Response(data, status=status.HTTP_200_OK)
 
 class GalleryDetailView(APIView):
@@ -20,6 +33,16 @@ class GalleryDetailView(APIView):
     def get(self, request, slug):
         data = fetch_gallery_by_slug(slug)
         if data:
+            # Check for favorite status
+            if request.user.is_authenticated:
+                is_fav = FavoriteGallery.objects.filter(
+                    user=request.user, 
+                    gallery__slug=slug
+                ).exists()
+                data['is_favorite'] = is_fav
+            else:
+                data['is_favorite'] = False
+                
             return Response(data, status=status.HTTP_200_OK)
         return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
