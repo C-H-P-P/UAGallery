@@ -1,7 +1,34 @@
-# Generated manually for FavoriteGallery model - v2
-from django.db import migrations, models
+# Migration to handle existing FavoriteGallery table
+from django.db import migrations, models, connection
 import django.db.models.deletion
 from django.conf import settings
+
+
+def check_table_exists(apps, schema_editor):
+    """Check if table exists, if not create it"""
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                AND table_name = 'app_favoritegallery'
+            );
+        """)
+        exists = cursor.fetchone()[0]
+        
+        if not exists:
+            # Table doesn't exist, create it
+            cursor.execute("""
+                CREATE TABLE app_favoritegallery (
+                    id BIGSERIAL PRIMARY KEY,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    gallery_id BIGINT NOT NULL REFERENCES app_gallery(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+                    UNIQUE (user_id, gallery_id)
+                );
+                CREATE INDEX app_favoritegallery_gallery_id ON app_favoritegallery(gallery_id);
+                CREATE INDEX app_favoritegallery_user_id ON app_favoritegallery(user_id);
+            """)
 
 
 class Migration(migrations.Migration):
@@ -12,19 +39,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='FavoriteGallery',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата додавання')),
-                ('gallery', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='app.gallery', verbose_name='Галерея')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorite_galleries', to=settings.AUTH_USER_MODEL, verbose_name='Користувач')),
-            ],
-            options={
-                'verbose_name': 'Улюблена галерея',
-                'verbose_name_plural': 'Улюблені галереї',
-                'ordering': ['-created_at'],
-                'unique_together': {('user', 'gallery')},
-            },
-        ),
+        migrations.RunPython(check_table_exists, reverse_code=migrations.RunPython.noop),
     ]
