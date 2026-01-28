@@ -96,6 +96,22 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'mysite.urls'
 
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
 # === DATABASE ===
@@ -118,32 +134,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # === AUTH & JWT SETTINGS ===
 
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 SITE_ID = 1
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'mysite.authentication.MinimalJWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
 }
 
-REST_AUTH = {
-    'USE_JWT': True,
-    'JWT_AUTH_COOKIE': 'access',
-    'JWT_AUTH_REFRESH_COOKIE': 'refresh',
-    'JWT_AUTH_HTTPONLY': False,
-}
+# === LOCALIZATION ===
 
-ACCOUNT_AUTHENTICATION_METHOD = "username"
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = False
-ACCOUNT_EMAIL_VERIFICATION = "none"
-
-# === EXTERNAL APIS ===
-
-CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
-CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
-CONTENTFUL_ENVIRONMENT = env('CONTENTFUL_ENVIRONMENT', default='master')
+LANGUAGE_CODE = 'uk-ua'
+TIME_ZONE = 'Europe/Kyiv'
+USE_I18N = True
+USE_TZ = True
