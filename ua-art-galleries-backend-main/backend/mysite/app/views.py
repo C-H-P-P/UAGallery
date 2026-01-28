@@ -75,15 +75,17 @@ class FavoriteGalleryToggleView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Знайти або створити галерею
-        gallery, created = Gallery.objects.get_or_create(
-            slug=slug,
-            defaults={
-                'name_ua': slug,  # Тимчасово, поки не отримаємо дані з Contentful
-                'name_en': slug,
-                'status': True
-            }
-        )
+        # Знайти галерею за slug
+        try:
+            gallery = Gallery.objects.get(slug=slug)
+        except Gallery.DoesNotExist:
+            # Якщо галерея не існує, створюємо запис
+            gallery = Gallery.objects.create(
+                slug=slug,
+                name_ua=slug,
+                name_en=slug,
+                status=True
+            )
 
         # Перевірити чи вже є в улюблених
         favorite = FavoriteGallery.objects.filter(user=request.user, gallery=gallery).first()

@@ -1,7 +1,7 @@
-# Generated manually for FavoriteGallery model
+# Generated migration for FavoriteGallery model
+from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
-from django.conf import settings
 
 
 class Migration(migrations.Migration):
@@ -16,14 +16,12 @@ class Migration(migrations.Migration):
             name='FavoriteGallery',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата додавання')),
-                ('gallery', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='app.gallery', verbose_name='Галерея')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorite_galleries', to=settings.AUTH_USER_MODEL, verbose_name='Користувач')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('gallery', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='app.gallery')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorite_galleries', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'verbose_name': 'Улюблена галерея',
-                'verbose_name_plural': 'Улюблені галереї',
-                'ordering': ['-created_at'],
+                'db_table': 'favorite_gallery',
                 'unique_together': {('user', 'gallery')},
             },
         ),
