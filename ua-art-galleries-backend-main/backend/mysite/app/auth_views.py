@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 from django.contrib.auth import authenticate, get_user_model
-from django.utils.decorators import method_decorator  # <--- Додали
-from django.views.decorators.csrf import csrf_exempt  # <--- Додали
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from mysite.authentication import build_minimal_jwt
+from rest_framework.authtoken.models import Token
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ("id", "username", "email", "first_name", "last_name")
+        fields = ("id", "username", "email", "first_name", "last_name", "is_active")
 
 
 # 👇 МАГІЯ ТУТ: Вимикаємо CSRF для логіна
@@ -39,8 +38,9 @@ class MinimalLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        token = build_minimal_jwt(user)
-        return Response({"access": token}, status=status.HTTP_200_OK)
+        # Use Token instead of JWT
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"key": token.key}, status=status.HTTP_200_OK)
 
 
 # 👇 МАГІЯ ТУТ: Вимикаємо CSRF для реєстрації
@@ -84,8 +84,9 @@ class MinimalRegisterView(APIView):
             last_name=last_name,
         )
 
-        token = build_minimal_jwt(user)
-        return Response({"access": token}, status=status.HTTP_201_CREATED)
+        # Use Token instead of JWT
+        token = Token.objects.create(user=user)
+        return Response({"key": token.key}, status=status.HTTP_201_CREATED)
 
 
 class UserDetailView(APIView):
