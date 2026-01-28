@@ -171,3 +171,19 @@ USE_TZ = True
 CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
 CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
 CONTENTFUL_ENVIRONMENT = env('CONTENTFUL_ENVIRONMENT', default='master')
+
+
+
+
+
+
+
+import sys
+
+if 'pytest' in sys.argv[0]:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+       }
+}
