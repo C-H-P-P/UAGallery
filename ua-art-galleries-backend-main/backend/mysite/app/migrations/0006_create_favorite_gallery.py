@@ -1,4 +1,4 @@
-# Generated manually for FavoriteGallery model
+# Generated manually for FavoriteGallery model - v2
 from django.db import migrations, models
 import django.db.models.deletion
 from django.conf import settings
