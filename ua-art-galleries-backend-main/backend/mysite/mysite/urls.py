@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 # Імпортуємо views з додатка 'app'
 # Зверни увагу: Django бачить це як 'mysite.app.views' або просто 'app.views', 
 # залежно від налаштувань. Якщо виникне помилка імпорту - скажи.
-from app.views import GalleryListView, GalleryDetailView 
+from app.views import GalleryListView, GalleryDetailView, FavoriteGalleryListView, FavoriteGalleryToggleView
 from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView, ChangePasswordView
 
 urlpatterns = [
@@ -15,6 +15,10 @@ urlpatterns = [
     # --- CONTENTFUL API (Нові шляхи) ---
     path('api/galleries/', GalleryListView.as_view(), name='gallery-list'),
     path('api/galleries/<slug:slug>/', GalleryDetailView.as_view(), name='gallery-detail'),
+
+    # --- FAVORITES ---
+    path('api/favorites/', FavoriteGalleryListView.as_view(), name='favorites-list'),
+    path('api/favorites/toggle/', FavoriteGalleryToggleView.as_view(), name='favorites-toggle'),
 
     # --- AUTH ---
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),

@@ -62,3 +62,28 @@ class Gallery(models.Model):
         db_table = 'public_gallery'
         verbose_name = "Gallery"
         verbose_name_plural = "Galleries"
+
+
+class FavoriteGallery(models.Model):
+    user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='favorite_galleries',
+        verbose_name="Користувач"
+    )
+    gallery = models.ForeignKey(
+        Gallery,
+        on_delete=models.CASCADE,
+        related_name='favorited_by',
+        verbose_name="Галерея"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Додано")
+
+    def __str__(self):
+        return f"{self.user.username} - {self.gallery.name_ua}"
+
+    class Meta:
+        db_table = 'favorite_gallery'
+        verbose_name = "Улюблена галерея"
+        verbose_name_plural = "Улюблені галереї"
+        unique_together = ['user', 'gallery']  # Один користувач не може додати галерею двічі
