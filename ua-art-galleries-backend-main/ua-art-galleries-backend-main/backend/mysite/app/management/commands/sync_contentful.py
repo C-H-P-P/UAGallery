@@ -126,6 +126,7 @@ class Command(BaseCommand):
                         'website_url': fields.get('websiteUrl', ''),
                         'founding_year': fields.get('foundingYear'),
                         'social_links': social_links,
+                        'image': image_url,
                     },
                 )
 
