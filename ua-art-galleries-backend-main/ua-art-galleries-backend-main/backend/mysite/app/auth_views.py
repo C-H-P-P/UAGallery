@@ -87,7 +87,7 @@ class MinimalRegisterView(APIView):
         )
 
         token = build_minimal_jwt(user)
-        return Response({"access": token}, status=status.HTTP_201_CREATED)
+        return Response({"key": token}, status=status.HTTP_201_CREATED)
 
 
 class UserDetailView(APIView):
