@@ -41,7 +41,7 @@ class MinimalLoginView(APIView):
             )
 
         token = build_minimal_jwt(user)
-        return Response({"access": token}, status=status.HTTP_200_OK)
+        return Response({"key": token}, status=status.HTTP_200_OK)
 
 
 # 👇 МАГІЯ ТУТ: Вимикаємо CSRF для реєстрації
