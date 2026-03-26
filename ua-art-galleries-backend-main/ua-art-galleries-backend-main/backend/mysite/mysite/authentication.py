@@ -29,7 +29,7 @@ class MinimalJWTAuthentication(authentication.BaseAuthentication):
             return None
 
         parts = auth.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
+        if len(parts) != 2 or parts[0].lower() != "token":
             return None
 
         token = parts[1]
@@ -58,7 +58,7 @@ class MinimalJWTAuthentication(authentication.BaseAuthentication):
         return (user, token)
 
     def authenticate_header(self, request):
-        return f'Bearer realm="{self.www_authenticate_realm}"'
+        return f'Token realm="{self.www_authenticate_realm}"'
 
 
 def build_minimal_jwt(user) -> str:
