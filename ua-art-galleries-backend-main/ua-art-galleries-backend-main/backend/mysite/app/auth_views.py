@@ -21,6 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
 @method_decorator(csrf_exempt, name='dispatch')
 class MinimalLoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         username = request.data.get("username") or request.data.get("login")
@@ -47,6 +48,7 @@ class MinimalLoginView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class MinimalRegisterView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         username = request.data.get("username")
