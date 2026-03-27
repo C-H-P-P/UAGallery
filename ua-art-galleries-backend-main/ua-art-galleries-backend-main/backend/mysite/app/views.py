@@ -9,6 +9,7 @@ from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import JSONParser
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -43,6 +44,7 @@ class GalleryDetailView(RetrieveAPIView):
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@parser_classes([JSONParser])
 def contentful_webhook(request):
     """
     Webhook endpoint для Contentful.
