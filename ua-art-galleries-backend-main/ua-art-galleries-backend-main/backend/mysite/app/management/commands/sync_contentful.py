@@ -51,6 +51,7 @@ class Command(BaseCommand):
                 'content_type': 'project',
                 'include': 2,
                 'limit': 1000,
+                'locale': '*',
             })
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'❌ Помилка отримання даних: {e}'))
