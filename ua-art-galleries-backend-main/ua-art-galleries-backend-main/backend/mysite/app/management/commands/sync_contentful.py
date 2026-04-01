@@ -78,11 +78,19 @@ class Command(BaseCommand):
                 fields = item.fields()
                 contentful_id = item.sys.get('id', '')
 
-                # Визначаємо slug
-                slug = fields.get('slug', '')
+                # Визначаємо slug (з урахуванням локалізації)
+                slug_field = fields.get('slug', '')
+                if isinstance(slug_field, dict):
+                    slug = slug_field.get('en-US', '')
+                else:
+                    slug = slug_field
                 if not slug:
                     # Якщо slug порожній — генеруємо з назви
-                    name = fields.get('name', contentful_id)
+                    name_field = fields.get('name', contentful_id)
+                    if isinstance(name_field, dict):
+                        name = name_field.get('en-US', contentful_id)
+                    else:
+                        name = name_field
                     slug = slugify(name, allow_unicode=True) or contentful_id
 
                 # Отримуємо URL картинки
