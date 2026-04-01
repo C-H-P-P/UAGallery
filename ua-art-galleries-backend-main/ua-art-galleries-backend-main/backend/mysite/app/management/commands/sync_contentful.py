@@ -1,14 +1,3 @@
-"""
-Management command для синхронізації даних з Contentful у базу даних.
-
-Використання:
-  python manage.py sync_contentful           # Синхронізувати всі галереї
-  python manage.py sync_contentful --clear   # Очистити БД перед синхронізацією
-
-У Docker:
-  docker-compose exec backend python manage.py sync_contentful
-"""
-
 import contentful
 import logging
 
@@ -45,13 +34,12 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f'❌ Помилка підключення до Contentful: {e}'))
             return
 
-        # 2. Забираємо всі записи типу 'project' з Contentful
+
         try:
             entries = client.entries({
                 'content_type': 'project',
                 'include': 2,
                 'limit': 1000,
-                'locale': '*',
             })
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'❌ Помилка отримання даних: {e}'))
@@ -77,26 +65,24 @@ class Command(BaseCommand):
             try:
                 fields = item.fields()
                 contentful_id = item.sys.get('id', '')
+                
+            
+                self.stdout.write(f'\n🔍 DEBUG {contentful_id}:')
+                self.stdout.write(f'   name: {fields.get("name")}')
+                self.stdout.write(f'   city: {fields.get("city")}')
+                self.stdout.write(f'   slug: {fields.get("slug")}')
 
-                # Визначаємо slug (з урахуванням локалізації)
-                slug_field = fields.get('slug', '')
-                if isinstance(slug_field, dict):
-                    slug = slug_field.get('en-US', '')
-                else:
-                    slug = slug_field
+            
+                slug = fields.get('slug', '')
                 if not slug:
                     # Якщо slug порожній — генеруємо з назви
-                    name_field = fields.get('name', contentful_id)
-                    if isinstance(name_field, dict):
-                        name = name_field.get('en-US', contentful_id)
-                    else:
-                        name = name_field
+                    name = fields.get('name', contentful_id)
                     slug = slugify(name, allow_unicode=True) or contentful_id
 
                 # Отримуємо URL картинки
                 image_url = self._get_image_url(fields.get('coverImage'))
 
-                # Обробка Rich Text (description)
+               
                 raw_description = fields.get('description', '')
                 if isinstance(raw_description, dict):
                     # Rich Text — конвертуємо в текст
@@ -104,36 +90,36 @@ class Command(BaseCommand):
                 else:
                     description = str(raw_description)
 
-                # Обробка social links
+             
                 social_links_raw = fields.get('socialLinks', {})
                 if social_links_raw is None:
                     social_links_raw = {}
                 social_links = social_links_raw.get('links', []) if isinstance(social_links_raw, dict) else []
 
-                # Обробка artists (може бути список або рядок)
+                
                 artists_raw = fields.get('artistsList', [])
                 if isinstance(artists_raw, list):
                     artists = '\n'.join(str(a) for a in artists_raw)
                 else:
                     artists = str(artists_raw) if artists_raw else ''
 
-                # Створюємо або оновлюємо запис в БД (по slug)
+         
                 gallery, created = Gallery.objects.update_or_create(
                     slug=slug,
                     defaults={
-                        'name_ua': fields.get('name', {}).get('en-US', '') if isinstance(fields.get('name'), dict) else fields.get('name', ''),
-                        'name_en': fields.get('name', {}).get('en-US', '') if isinstance(fields.get('name'), dict) else fields.get('name', ''),
-                        'city': fields.get('city', {}).get('en-US', '') if isinstance(fields.get('city'), dict) else fields.get('city', ''),
-                        'address': fields.get('address', {}).get('en-US', '') if isinstance(fields.get('address'), dict) else fields.get('address', ''),
-                        'short_description': fields.get('shortDescription', {}).get('en-US', '') if isinstance(fields.get('shortDescription'), dict) else fields.get('shortDescription', ''),
+                        'name_ua': fields.get('name', ''),
+                        'name_en': fields.get('name', ''),
+                        'city': fields.get('city', ''),
+                        'address': fields.get('address', ''),
+                        'short_description': fields.get('shortDescription', ''),
                         'description': description,
-                        'founders': fields.get('founders', {}).get('en-US', '') if isinstance(fields.get('founders'), dict) else fields.get('founders', ''),
-                        'curators': fields.get('curators', {}).get('en-US', '') if isinstance(fields.get('curators'), dict) else fields.get('curators', ''),
+                        'founders': fields.get('founders', ''),
+                        'curators': fields.get('curators', ''),
                         'artists': artists,
-                        'email': fields.get('email', {}).get('en-US', '') if isinstance(fields.get('email'), dict) else fields.get('email', ''),
-                        'phone': fields.get('phone', {}).get('en-US', '') if isinstance(fields.get('phone'), dict) else fields.get('phone', ''),
-                        'website_url': fields.get('websiteUrl', {}).get('en-US', '') if isinstance(fields.get('websiteUrl'), dict) else fields.get('websiteUrl', ''),
-                        'founding_year': fields.get('foundingYear', {}).get('en-US') if isinstance(fields.get('foundingYear'), dict) else fields.get('foundingYear'),
+                        'email': fields.get('email', ''),
+                        'phone': fields.get('phone', ''),
+                        'website_url': fields.get('websiteUrl', ''),
+                        'founding_year': fields.get('foundingYear'),
                         'social_links': social_links,
                         'image': image_url,
                     },
@@ -152,7 +138,7 @@ class Command(BaseCommand):
                 self.stderr.write(self.style.ERROR(f'  ❌ Помилка для {entry_id}: {e}'))
                 logger.exception(f'Sync error for entry {entry_id}')
 
-        # 5. Підсумок
+        
         self.stdout.write('\n' + '=' * 50)
         self.stdout.write(self.style.SUCCESS(f'✅ Синхронізація завершена!'))
         self.stdout.write(f'   📥 Створено: {created_count}')
