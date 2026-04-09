@@ -172,7 +172,6 @@ def contentful_webhook(request):
                 'curators_en': curators_en,
                 'artists_ua': artists_ua,
                 'artists_en': artists_en,
-                'status': status_bool,
                 'email': email,
                 'phone': phone,
                 'website_url': website_url,
