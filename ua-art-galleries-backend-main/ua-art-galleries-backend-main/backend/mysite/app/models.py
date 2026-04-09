@@ -70,10 +70,34 @@ class Gallery(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name_ua or self.name_en
+        return f"{self.name_ua} ({self.slug})"
 
     class Meta:
         db_table = 'public_gallery'
         verbose_name = "Gallery"
         verbose_name_plural = "Galleries"
         ordering = ['-created_at']
+
+class FavoriteGallery(models.Model):
+    user = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.CASCADE, 
+        related_name='favorite_galleries',
+        verbose_name="Користувач"
+    )
+    gallery = models.ForeignKey(
+        Gallery, 
+        on_delete=models.CASCADE, 
+        related_name='favorited_by',
+        verbose_name="Галерея"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Час додавання")
+
+    class Meta:
+        db_table = 'favorite_gallery'
+        unique_together = ('user', 'gallery')
+        verbose_name = "Улюблена галерея"
+        verbose_name_plural = "Улюблені галереї"
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.gallery.slug}"

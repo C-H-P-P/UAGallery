@@ -11,11 +11,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.views import APIView
 from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 
-from .models import Gallery
+from .models import Gallery, FavoriteGallery
 from .serializers import GalleryListSerializer, GalleryDetailSerializer
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,32 @@ class GalleryDetailView(RetrieveAPIView):
     serializer_class = GalleryDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
+
+
+class FavoriteListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        favorites = FavoriteGallery.objects.filter(user=request.user).values_list('gallery__slug', flat=True)
+        return Response({'favorites': list(favorites)})
+
+
+class FavoriteToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        slug = request.data.get('slug')
+        if not slug:
+            return Response({'error': 'slug is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        gallery = get_object_or_404(Gallery, slug=slug)
+        favorite, created = FavoriteGallery.objects.get_or_create(user=request.user, gallery=gallery)
+        
+        if not created:
+            favorite.delete()
+            return Response({'detail': 'Removed from favorites', 'is_favorite': False}, status=status.HTTP_200_OK)
+        
+        return Response({'detail': 'Added to favorites', 'is_favorite': True}, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
