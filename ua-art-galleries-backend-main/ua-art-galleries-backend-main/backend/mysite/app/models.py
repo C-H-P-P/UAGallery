@@ -24,6 +24,8 @@ class Gallery(models.Model):
     short_description_en = models.TextField(blank=True, default="", verbose_name="Короткий опис (EN)")
     description_ua = models.TextField(blank=True, default="", verbose_name="Повний опис (UA)")
     description_en = models.TextField(blank=True, default="", verbose_name="Повний опис (EN)")
+    specialization_ua = models.CharField(max_length=255, blank=True, default="", verbose_name="Спеціалізація (UA)")
+    specialization_en = models.CharField(max_length=255, blank=True, default="", verbose_name="Спеціалізація (EN)")
 
     # === ЗОБРАЖЕННЯ ===
     image = models.ImageField(

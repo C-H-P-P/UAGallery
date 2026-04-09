@@ -144,20 +144,26 @@ def contentful_webhook(request):
         website_url = _get_localized_value(fields.get('websiteUrl'), '')
         founding_year = _get_localized_value(fields.get('foundingYear'), None)
         status_val = _get_localized_value(fields.get('status'), True)
-        status_bool = bool(status_val) if status_val is not None else True
+        short_description_ua = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', '')
+        short_description_en = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', '')
+        specialization_ua = _get_lang(fields.get('specialization', {}), 'uk', '')
+        specialization_en = _get_lang(fields.get('specialization', {}), 'en-US', '')
         
-        # Створюємо або оновлюємо запис в БД
+        # Зберігання в базу
         gallery, created = Gallery.objects.update_or_create(
             slug=slug,
             defaults={
                 'name_ua': name_ua,
                 'name_en': name_en,
+                'status': bool(status_val) if status_val is not None else True,
                 'city_ua': city_ua,
                 'city_en': city_en,
                 'address_ua': address_ua,
                 'address_en': address_en,
-                'short_description_ua': short_desc_ua,
-                'short_description_en': short_desc_en,
+                'short_description_ua': short_description_ua,
+                'short_description_en': short_description_en,
+                'specialization_ua': specialization_ua,
+                'specialization_en': specialization_en,
                 'description_ua': desc_ua,
                 'description_en': desc_en,
                 'founders_ua': founders_ua,

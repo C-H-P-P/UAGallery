@@ -18,7 +18,11 @@ class GalleryAdmin(admin.ModelAdmin):
             'fields': ('city_ua', 'city_en', 'address_ua', 'address_en')
         }),
         ('Описи', {
-            'fields': ('short_description_ua', 'short_description_en', 'description_ua', 'description_en')
+            'fields': (
+                'short_description_ua', 'short_description_en',
+                'description_ua', 'description_en',
+                'specialization_ua', 'specialization_en',
+            )
         }),
         ('Люди', {
             'fields': ('founders_ua', 'founders_en', 'curators_ua', 'curators_en', 'artists_ua', 'artists_en')

@@ -132,6 +132,8 @@ class Command(BaseCommand):
                         'address_en': _get_lang(fields.get('address'), 'en-US', ''),
                         'short_description_ua': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', ''),
                         'short_description_en': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', ''),
+                        'specialization_ua': _get_lang(fields.get('specialization', {}), 'uk', ''),
+                        'specialization_en': _get_lang(fields.get('specialization', {}), 'en-US', ''),
                         'description_ua': description_ua,
                         'description_en': description_en,
                         'founders_ua': _get_lang(fields.get('founders'), 'uk', ''),

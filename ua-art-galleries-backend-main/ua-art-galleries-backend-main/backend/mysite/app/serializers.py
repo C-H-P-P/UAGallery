@@ -13,9 +13,12 @@ class DynamicLocaleMixin:
 
     def resolve_locale(self, obj, field_base):
         lang = self.get_lang()
+        val_ua = getattr(obj, f"{field_base}_ua", '')
+        val_en = getattr(obj, f"{field_base}_en", '')
+        
         if lang == 'en':
-            return getattr(obj, f"{field_base}_en", '')
-        return getattr(obj, f"{field_base}_ua", '')
+            return val_en if val_en else val_ua
+        return val_ua if val_ua else val_en
 
     def get_name(self, obj): return self.resolve_locale(obj, 'name')
     def get_city(self, obj): return self.resolve_locale(obj, 'city')
@@ -69,7 +72,7 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
     def get_founders(self, obj): return self.resolve_locale(obj, 'founders')
     def get_curators(self, obj): return self.resolve_locale(obj, 'curators')
     def get_artists(self, obj): return self.resolve_locale(obj, 'artists')
-    def get_specialization(self, obj): return self.resolve_locale(obj, 'short_description')
+    def get_specialization(self, obj): return self.resolve_locale(obj, 'specialization')
 
     class Meta:
         model = Gallery
@@ -99,7 +102,8 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
             'name_ua', 'name_en', 'city_ua', 'city_en',
             'address_ua', 'address_en', 'short_description_ua', 'short_description_en',
             'description_ua', 'description_en', 'founders_ua', 'founders_en',
-            'curators_ua', 'curators_en', 'artists_ua', 'artists_en'
+            'curators_ua', 'curators_en', 'artists_ua', 'artists_en',
+            'specialization_ua', 'specialization_en'
         ]
 
 class UserSerializer(serializers.ModelSerializer):
