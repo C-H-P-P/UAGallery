@@ -10,13 +10,20 @@ class Gallery(models.Model):
         help_text="Унікальний ідентифікатор для URL (наприклад: mystetskyi-arsenal)"
     )
 
+    # === СТАТУС ===
+    status = models.BooleanField(default=True, verbose_name="Статус (активна?)")
+
     # === ЛОКАЦІЯ ===
-    city = models.CharField(max_length=100, blank=True, default="", verbose_name="Місто")
-    address = models.CharField(max_length=300, blank=True, default="", verbose_name="Адреса")
+    city_ua = models.CharField(max_length=100, blank=True, default="", verbose_name="Місто (UA)")
+    city_en = models.CharField(max_length=100, blank=True, default="", verbose_name="Місто (EN)")
+    address_ua = models.CharField(max_length=300, blank=True, default="", verbose_name="Адреса (UA)")
+    address_en = models.CharField(max_length=300, blank=True, default="", verbose_name="Адреса (EN)")
 
     # === ОПИСИ ===
-    short_description = models.TextField(blank=True, default="", verbose_name="Короткий опис")
-    description = models.TextField(blank=True, default="", verbose_name="Повний опис")
+    short_description_ua = models.TextField(blank=True, default="", verbose_name="Короткий опис (UA)")
+    short_description_en = models.TextField(blank=True, default="", verbose_name="Короткий опис (EN)")
+    description_ua = models.TextField(blank=True, default="", verbose_name="Повний опис (UA)")
+    description_en = models.TextField(blank=True, default="", verbose_name="Повний опис (EN)")
 
     # === ЗОБРАЖЕННЯ ===
     image = models.ImageField(
@@ -27,11 +34,18 @@ class Gallery(models.Model):
     )
 
     # === ЛЮДИ ===
-    founders = models.TextField(blank=True, default="", verbose_name="Засновники")
-    curators = models.TextField(blank=True, default="", verbose_name="Куратори")
-    artists = models.TextField(
+    founders_ua = models.TextField(blank=True, default="", verbose_name="Засновники (UA)")
+    founders_en = models.TextField(blank=True, default="", verbose_name="Засновники (EN)")
+    curators_ua = models.TextField(blank=True, default="", verbose_name="Куратори (UA)")
+    curators_en = models.TextField(blank=True, default="", verbose_name="Куратори (EN)")
+    artists_ua = models.TextField(
         blank=True, default="",
-        verbose_name="Митці",
+        verbose_name="Митці (UA)",
+        help_text="Список митців (кожен з нового рядка)"
+    )
+    artists_en = models.TextField(
+        blank=True, default="",
+        verbose_name="Митці (EN)",
         help_text="Список митців (кожен з нового рядка)"
     )
 

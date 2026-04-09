@@ -1,5 +1,6 @@
 import contentful
 import logging
+import re
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -34,12 +35,13 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f'❌ Помилка підключення до Contentful: {e}'))
             return
 
-
+        # 2. Забираємо всі записи типу 'project' з Contentful у всіх локалях
         try:
             entries = client.entries({
                 'content_type': 'project',
                 'include': 2,
                 'limit': 1000,
+                'locale': '*'
             })
         except Exception as e:
             self.stderr.write(self.style.ERROR(f'❌ Помилка отримання даних: {e}'))
@@ -63,63 +65,86 @@ class Command(BaseCommand):
 
         for item in entries:
             try:
-                fields = item.fields()
+                # Отримуємо raw поля (json від Contentful) де локалі знаходяться в саб-об'єктах
+                fields = item.raw.get('fields', {})
                 contentful_id = item.sys.get('id', '')
                 
-            
-                self.stdout.write(f'\n🔍 DEBUG {contentful_id}:')
-                self.stdout.write(f'   name: {fields.get("name")}')
-                self.stdout.write(f'   city: {fields.get("city")}')
-                self.stdout.write(f'   slug: {fields.get("slug")}')
+                # Допоміжна функція для витягування локалізованих полів
+                def _get_lang(field_dict, lang, default=''):
+                    if isinstance(field_dict, dict):
+                        return field_dict.get(lang, field_dict.get('en-US', default))
+                    return field_dict if field_dict is not None else default
 
-            
-                slug = fields.get('slug', '')
+                # Визначаємо slug
+                slug_field = fields.get('slug', {})
+                slug = _get_lang(slug_field, 'en-US', '')
                 if not slug:
-                    # Якщо slug порожній — генеруємо з назви
-                    name = fields.get('name', contentful_id)
-                    slug = slugify(name, allow_unicode=True) or contentful_id
+                    name_field = fields.get('name', {})
+                    name_fallback = _get_lang(name_field, 'en-US', contentful_id)
+                    slug = slugify(name_fallback, allow_unicode=True) or contentful_id
 
-                # Отримуємо URL картинки
-                image_url = self._get_image_url(fields.get('coverImage'))
+                # Отримуємо URL картинки (через resolved fields від SDK)
+                try:
+                    resolved_fields = item.fields() or {}
+                    cover_asset = resolved_fields.get('coverImage', resolved_fields.get('cover_image'))
+                except Exception:
+                    cover_asset = None
+                image_url = self._get_image_url(cover_asset)
 
-               
-                raw_description = fields.get('description', '')
-                if isinstance(raw_description, dict):
-                    # Rich Text — конвертуємо в текст
-                    description = self._rich_text_to_plain(raw_description)
-                else:
-                    description = str(raw_description)
+                # Обробка Rich Text (description) для обох локалей
+                raw_description = fields.get('description', {})
+                def _get_rich_text_lang(rt, lang):
+                    if isinstance(rt, dict):
+                        val = rt.get(lang, rt)
+                        if isinstance(val, dict):
+                            return self._rich_text_to_plain(val)
+                        return str(val)
+                    return str(rt) if rt else ''
+                
+                description_ua = _get_rich_text_lang(raw_description, 'uk')
+                description_en = _get_rich_text_lang(raw_description, 'en-US')
 
              
                 social_links_raw = fields.get('socialLinks', {})
-                if social_links_raw is None:
-                    social_links_raw = {}
-                social_links = social_links_raw.get('links', []) if isinstance(social_links_raw, dict) else []
+                social_links_val = _get_lang(social_links_raw, 'en-US', {})
+                social_links = social_links_val.get('links', []) if isinstance(social_links_val, dict) else []
 
-                
-                artists_raw = fields.get('artistsList', [])
-                if isinstance(artists_raw, list):
-                    artists = '\n'.join(str(a) for a in artists_raw)
-                else:
-                    artists = str(artists_raw) if artists_raw else ''
+                # Обробка artists
+                artists_data = fields.get('artistsList', fields.get('artists_list', {}))
+                artists_ua_raw = _get_lang(artists_data, 'uk', [])
+                artists_en_raw = _get_lang(artists_data, 'en-US', [])
+                artists_ua = '\n'.join(str(a) for a in artists_ua_raw) if isinstance(artists_ua_raw, list) else str(artists_ua_raw)
+                artists_en = '\n'.join(str(a) for a in artists_en_raw) if isinstance(artists_en_raw, list) else str(artists_en_raw)
+
+                # Отримуємо статус
+                status_val = _get_lang(fields.get('status', {}), 'en-US', True)
+                status_bool = bool(status_val) if status_val is not None else True
 
          
                 gallery, created = Gallery.objects.update_or_create(
                     slug=slug,
                     defaults={
-                        'name_ua': fields.get('name', ''),
-                        'name_en': fields.get('name', ''),
-                        'city': fields.get('city', ''),
-                        'address': fields.get('address', ''),
-                        'short_description': fields.get('shortDescription', ''),
-                        'description': description,
-                        'founders': fields.get('founders', ''),
-                        'curators': fields.get('curators', ''),
-                        'artists': artists,
-                        'email': fields.get('email', ''),
-                        'phone': fields.get('phone', ''),
-                        'website_url': fields.get('websiteUrl', ''),
-                        'founding_year': fields.get('foundingYear'),
+                        'name_ua': _get_lang(fields.get('name'), 'uk', ''),
+                        'name_en': _get_lang(fields.get('name'), 'en-US', ''),
+                        'city_ua': _get_lang(fields.get('city'), 'uk', ''),
+                        'city_en': _get_lang(fields.get('city'), 'en-US', ''),
+                        'address_ua': _get_lang(fields.get('address'), 'uk', ''),
+                        'address_en': _get_lang(fields.get('address'), 'en-US', ''),
+                        'short_description_ua': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', ''),
+                        'short_description_en': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', ''),
+                        'description_ua': description_ua,
+                        'description_en': description_en,
+                        'founders_ua': _get_lang(fields.get('founders'), 'uk', ''),
+                        'founders_en': _get_lang(fields.get('founders'), 'en-US', ''),
+                        'curators_ua': _get_lang(fields.get('curators'), 'uk', ''),
+                        'curators_en': _get_lang(fields.get('curators'), 'en-US', ''),
+                        'artists_ua': artists_ua,
+                        'artists_en': artists_en,
+                        'status': status_bool,
+                        'email': _get_lang(fields.get('email'), 'en-US', ''),
+                        'phone': _get_lang(fields.get('phone'), 'en-US', ''),
+                        'website_url': _get_lang(fields.get('websiteUrl', fields.get('website_url', {})), 'en-US', ''),
+                        'founding_year': self._extract_year(_get_lang(fields.get('foundingYear', fields.get('founding_year', {})), 'en-US', None)),
                         'social_links': social_links,
                         'image': image_url,
                     },
@@ -146,6 +171,19 @@ class Command(BaseCommand):
         if error_count:
             self.stdout.write(self.style.ERROR(f'   ❌ Помилок: {error_count}'))
         self.stdout.write(f'   📊 Всього в БД: {Gallery.objects.count()}')
+
+    def _extract_year(self, year_value):
+        """Витягує 4-значне число (рік) з рядка, наприклад '2005(Дубай)' → 2005"""
+        if not year_value or year_value == '-':
+            return None
+        if isinstance(year_value, int):
+            return year_value
+        # Шукаємо 4-значне число в рядку
+        import re
+        match = re.search(r'\b(19|20)\d{2}\b', str(year_value))
+        if match:
+            return int(match.group(0))
+        return None
 
     def _get_image_url(self, asset):
         """Отримує URL картинки з об'єкта Contentful Asset"""

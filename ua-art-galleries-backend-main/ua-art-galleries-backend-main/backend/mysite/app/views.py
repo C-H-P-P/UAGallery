@@ -9,8 +9,9 @@ from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
-from rest_framework.parsers import JSONParser
+
 from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -93,14 +94,16 @@ def contentful_webhook(request):
         
         # Обробка Rich Text (description)
         raw_description = fields.get('description', {})
-        if isinstance(raw_description, dict):
-            desc_value = raw_description.get('en-US', raw_description)
-            if isinstance(desc_value, dict):
-                description = _rich_text_to_plain(desc_value)
-            else:
-                description = str(desc_value)
-        else:
-            description = str(raw_description) if raw_description else ''
+        def _get_rich_text_lang(rt, lang):
+            if isinstance(rt, dict):
+                val = rt.get(lang, rt)
+                if isinstance(val, dict):
+                    return _rich_text_to_plain(val)
+                return str(val)
+            return str(rt) if rt else ''
+        
+        desc_ua = _get_rich_text_lang(raw_description, 'uk')
+        desc_en = _get_rich_text_lang(raw_description, 'en-US')
         
         # Обробка social links
         social_links_raw = fields.get('socialLinks', {})
@@ -110,40 +113,60 @@ def contentful_webhook(request):
             social_links_raw = {}
         social_links = social_links_raw.get('links', []) if isinstance(social_links_raw, dict) else []
         
+        # Отримуємо значення полів для двох мов
+        def _get_lang(field, lang, default=''):
+            if isinstance(field, dict):
+                return field.get(lang, field.get('en-US', default))
+            return field if field is not None else default
+
+        name_ua = _get_lang(fields.get('name'), 'uk', '')
+        name_en = _get_lang(fields.get('name'), 'en-US', '')
+        city_ua = _get_lang(fields.get('city'), 'uk', '')
+        city_en = _get_lang(fields.get('city'), 'en-US', '')
+        address_ua = _get_lang(fields.get('address'), 'uk', '')
+        address_en = _get_lang(fields.get('address'), 'en-US', '')
+        short_desc_ua = _get_lang(fields.get('shortDescription'), 'uk', '')
+        short_desc_en = _get_lang(fields.get('shortDescription'), 'en-US', '')
+        founders_ua = _get_lang(fields.get('founders'), 'uk', '')
+        founders_en = _get_lang(fields.get('founders'), 'en-US', '')
+        curators_ua = _get_lang(fields.get('curators'), 'uk', '')
+        curators_en = _get_lang(fields.get('curators'), 'en-US', '')
+
         # Обробка artists
-        artists_raw = fields.get('artistsList', {})
-        if isinstance(artists_raw, dict):
-            artists_raw = artists_raw.get('en-US', [])
-        if isinstance(artists_raw, list):
-            artists = '\n'.join(str(a) for a in artists_raw)
-        else:
-            artists = str(artists_raw) if artists_raw else ''
-        
-        # Отримуємо значення полів (враховуючи локалізацію Contentful)
-        name = _get_localized_value(fields.get('name'), '')
-        city = _get_localized_value(fields.get('city'), '')
-        address = _get_localized_value(fields.get('address'), '')
-        short_description = _get_localized_value(fields.get('shortDescription'), '')
-        founders = _get_localized_value(fields.get('founders'), '')
-        curators = _get_localized_value(fields.get('curators'), '')
+        artists_data = fields.get('artistsList', {})
+        artists_ua_raw = _get_lang(artists_data, 'uk', [])
+        artists_en_raw = _get_lang(artists_data, 'en-US', [])
+        artists_ua = '\n'.join(str(a) for a in artists_ua_raw) if isinstance(artists_ua_raw, list) else str(artists_ua_raw)
+        artists_en = '\n'.join(str(a) for a in artists_en_raw) if isinstance(artists_en_raw, list) else str(artists_en_raw)
+
         email = _get_localized_value(fields.get('email'), '')
         phone = _get_localized_value(fields.get('phone'), '')
         website_url = _get_localized_value(fields.get('websiteUrl'), '')
         founding_year = _get_localized_value(fields.get('foundingYear'), None)
+        status_val = _get_localized_value(fields.get('status'), True)
+        status_bool = bool(status_val) if status_val is not None else True
         
         # Створюємо або оновлюємо запис в БД
         gallery, created = Gallery.objects.update_or_create(
             slug=slug,
             defaults={
-                'name_ua': name,
-                'name_en': name,
-                'city': city,
-                'address': address,
-                'short_description': short_description,
-                'description': description,
-                'founders': founders,
-                'curators': curators,
-                'artists': artists,
+                'name_ua': name_ua,
+                'name_en': name_en,
+                'city_ua': city_ua,
+                'city_en': city_en,
+                'address_ua': address_ua,
+                'address_en': address_en,
+                'short_description_ua': short_desc_ua,
+                'short_description_en': short_desc_en,
+                'description_ua': desc_ua,
+                'description_en': desc_en,
+                'founders_ua': founders_ua,
+                'founders_en': founders_en,
+                'curators_ua': curators_ua,
+                'curators_en': curators_en,
+                'artists_ua': artists_ua,
+                'artists_en': artists_en,
+                'status': status_bool,
                 'email': email,
                 'phone': phone,
                 'website_url': website_url,
