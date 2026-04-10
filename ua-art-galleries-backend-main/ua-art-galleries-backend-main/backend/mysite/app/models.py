@@ -103,30 +103,53 @@ class Gallery(models.Model):
         super().save(*args, **kwargs)
 
     def _geocode_address(self):
-        # Намагаємося геокодувати за українською адресою, якщо є, інакше за англійською
         addr = self.address_ua or self.address_en or ""
         city = self.city_ua or self.city_en or ""
-        
         if not addr and not city:
             return
             
-        query = f"{addr}, {city}, Ukraine".strip(", ")
-        # OpenStreetMap Nominatim API
-        url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query)}&format=json&limit=1"
+        import time
+
+        def fetch_osm(q):
+            url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(q)}&format=json&limit=1"
+            try:
+                headers = {'User-Agent': 'UAGalleriesApp/3.0'}
+                req = requests.get(url, headers=headers, timeout=10)
+                res = req.json()
+                if isinstance(res, list) and len(res) > 0:
+                    self.latitude = float(res[0]['lat'])
+                    self.longitude = float(res[0]['lon'])
+                    return True
+            except Exception as e:
+                logger.error(f"OSM error for {q}: {e}")
+            return False
+
+        queries_to_try = []
+        full_q = f"{addr}, {city}, Ukraine".strip(", ")
+        queries_to_try.append(full_q)
         
-        try:
-            # Nominatim вимагає валідний User-Agent
-            headers = {'User-Agent': 'UAGalleriesApp/1.0'}
-            req = requests.get(url, headers=headers, timeout=10)
-            res = req.json()
-            if isinstance(res, list) and len(res) > 0:
-                location = res[0]
-                self.latitude = float(location['lat'])
-                self.longitude = float(location['lon'])
-            else:
-                logger.warning(f"OSM Geocoding zero results for query '{query}'")
-        except Exception as e:
-            logger.error(f"OSM Geocoding exception for query '{query}': {e}")
+        parts = [p.strip() for p in addr.split(',') if p.strip()]
+        if len(parts) > 1:
+            # First two parts (useful for "Street, 10a, Floor 2" -> "Street, 10a")
+            queries_to_try.append(f"{parts[0]}, {parts[1]}, {city}, Ukraine".strip(", "))
+            # Last two parts (useful for "City, City, Street, 5" -> "Street, 5")
+            if len(parts) > 2:
+                queries_to_try.append(f"{parts[-2]}, {parts[-1]}, {city}, Ukraine".strip(", "))
+            # Only first part
+            queries_to_try.append(f"{parts[0]}, {city}, Ukraine".strip(", "))
+
+        # unique queries while preserving order
+        seen = set()
+        unique_queries = [x for x in queries_to_try if not (x in seen or seen.add(x))]
+
+        for q in unique_queries:
+            if fetch_osm(q):
+                logger.info(f"OSM successfully found: {q}")
+                return
+            # OpenStreetMap requires delays between multiple requests
+            time.sleep(1.2)
+            
+        logger.warning(f"OSM completely failed to find address '{addr}' after multiple attempts")
 
     def __str__(self):
         return f"{self.name_ua} ({self.slug})"
