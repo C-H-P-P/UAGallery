@@ -186,5 +186,5 @@ LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
 
 # === CONTENTFUL (використовується для синхронізації контенту в БД) ===
-CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID')
-CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN')
+CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
+CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
