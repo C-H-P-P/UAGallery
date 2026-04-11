@@ -1,7 +1,9 @@
 import contentful
 import logging
 import re
+import time
 
+from deep_translator import GoogleTranslator
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
@@ -9,6 +11,52 @@ from django.utils.text import slugify
 from app.models import Gallery
 
 logger = logging.getLogger(__name__)
+
+
+def has_cyrillic(text):
+    return bool(re.search('[а-яА-ЯёЁіІїЇєЄґҐ]', str(text)))
+
+
+def smart_translate(uk_text, en_text, is_address=False):
+    """
+    Translates uk -> en if EN field is empty or contains Cyrillic.
+    Returns (clean_ua, translated_en).
+    """
+    u = str(uk_text).strip() if uk_text else ''
+    e = str(en_text).strip() if en_text else ''
+
+    # Якщо UK поле порожнє, але EN поле має кирилицю — переставляємо
+    if not u and e and has_cyrillic(e):
+        u, e = e, ''
+
+    # Якщо нема що перекладати
+    if not u or u == '-':
+        return u, e
+
+    # EN вже правильний (не кирилиця)
+    if e and not has_cyrillic(e):
+        return u, e
+
+    # Треба перекладати: EN порожній або має кирилицю
+    text_to_translate = u
+    if is_address:
+        text_to_translate = u.replace('вул.', 'vul.').replace('просп.', 'prosp.').replace('пров.', 'prov.')
+
+    for attempt in range(3):
+        try:
+            translated = GoogleTranslator(source='uk', target='en').translate(text_to_translate)
+            if is_address and translated:
+                translated = translated.replace('vul.', 'St.').replace('prosp.', 'Ave.').replace('prov.', 'Ln.')
+            time.sleep(1.0)
+            return u, translated or e or ''
+        except Exception as ex:
+            wait = (attempt + 1) * 3
+            logger.warning(f"Translation attempt {attempt+1} failed: {ex}. Waiting {wait}s...")
+            time.sleep(wait)
+
+    # Всі спроби провалились — повертаємо uk і порожній EN
+    logger.error(f"Translation completely failed for: '{u}'")
+    return u, ''
 
 
 class Command(BaseCommand):
@@ -121,27 +169,60 @@ class Command(BaseCommand):
                 status_bool = bool(status_val) if status_val is not None else True
 
          
+                name_ua, name_en = smart_translate(
+                    _get_lang(fields.get('name'), 'uk', ''),
+                    _get_lang(fields.get('name'), 'en-US', '')
+                )
+                city_ua, city_en = smart_translate(
+                    _get_lang(fields.get('city'), 'uk', ''),
+                    _get_lang(fields.get('city'), 'en-US', '')
+                )
+                address_ua, address_en = smart_translate(
+                    _get_lang(fields.get('address'), 'uk', ''),
+                    _get_lang(fields.get('address'), 'en-US', ''),
+                    is_address=True
+                )
+                short_desc_ua, short_desc_en = smart_translate(
+                    _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', ''),
+                    _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', '')
+                )
+                spec_ua, spec_en = smart_translate(
+                    _get_lang(fields.get('specialization', {}), 'uk', ''),
+                    _get_lang(fields.get('specialization', {}), 'en-US', '')
+                )
+                desc_ua, desc_en = smart_translate(description_ua, description_en)
+                founders_ua, founders_en = smart_translate(
+                    _get_lang(fields.get('founders'), 'uk', ''),
+                    _get_lang(fields.get('founders'), 'en-US', '')
+                )
+                curators_ua, curators_en = smart_translate(
+                    _get_lang(fields.get('curators'), 'uk', ''),
+                    _get_lang(fields.get('curators'), 'en-US', '')
+                )
+                artists_ua_f, artists_en_f = smart_translate(artists_ua, artists_en)
+
                 gallery, created = Gallery.objects.update_or_create(
                     slug=slug,
                     defaults={
-                        'name_ua': _get_lang(fields.get('name'), 'uk', ''),
-                        'name_en': _get_lang(fields.get('name'), 'en-US', ''),
-                        'city_ua': _get_lang(fields.get('city'), 'uk', ''),
-                        'city_en': _get_lang(fields.get('city'), 'en-US', ''),
-                        'address_ua': _get_lang(fields.get('address'), 'uk', ''),
-                        'address_en': _get_lang(fields.get('address'), 'en-US', ''),
-                        'short_description_ua': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', ''),
-                        'short_description_en': _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', ''),
-                        'specialization_ua': _get_lang(fields.get('specialization', {}), 'uk', ''),
-                        'specialization_en': _get_lang(fields.get('specialization', {}), 'en-US', ''),
-                        'description_ua': description_ua,
-                        'description_en': description_en,
-                        'founders_ua': _get_lang(fields.get('founders'), 'uk', ''),
-                        'founders_en': _get_lang(fields.get('founders'), 'en-US', ''),
-                        'curators_ua': _get_lang(fields.get('curators'), 'uk', ''),
-                        'curators_en': _get_lang(fields.get('curators'), 'en-US', ''),
-                        'artists_ua': artists_ua,
-                        'artists_en': artists_en,
+                        'contentful_id': contentful_id,
+                        'name_ua': name_ua,
+                        'name_en': name_en,
+                        'city_ua': city_ua,
+                        'city_en': city_en,
+                        'address_ua': address_ua,
+                        'address_en': address_en,
+                        'short_description_ua': short_desc_ua,
+                        'short_description_en': short_desc_en,
+                        'specialization_ua': spec_ua,
+                        'specialization_en': spec_en,
+                        'description_ua': desc_ua,
+                        'description_en': desc_en,
+                        'founders_ua': founders_ua,
+                        'founders_en': founders_en,
+                        'curators_ua': curators_ua,
+                        'curators_en': curators_en,
+                        'artists_ua': artists_ua_f,
+                        'artists_en': artists_en_f,
                         'status': status_bool,
                         'email': _get_lang(fields.get('email'), 'en-US', ''),
                         'phone': _get_lang(fields.get('phone'), 'en-US', ''),

@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import json
 import logging
+import re
+import time
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -9,13 +11,13 @@ from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
-
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.views import APIView
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from deep_translator import GoogleTranslator
 
 from .models import Gallery, FavoriteGallery
 from .serializers import GalleryListSerializer, GalleryDetailSerializer
@@ -147,35 +149,79 @@ def contentful_webhook(request):
                 return field.get(lang, field.get('en-US', default))
             return field if field is not None else default
 
-        name_ua = _get_lang(fields.get('name'), 'uk', '')
-        name_en = _get_lang(fields.get('name'), 'en-US', '')
-        city_ua = _get_lang(fields.get('city'), 'uk', '')
-        city_en = _get_lang(fields.get('city'), 'en-US', '')
-        address_ua = _get_lang(fields.get('address'), 'uk', '')
-        address_en = _get_lang(fields.get('address'), 'en-US', '')
-        short_desc_ua = _get_lang(fields.get('shortDescription'), 'uk', '')
-        short_desc_en = _get_lang(fields.get('shortDescription'), 'en-US', '')
-        founders_ua = _get_lang(fields.get('founders'), 'uk', '')
-        founders_en = _get_lang(fields.get('founders'), 'en-US', '')
-        curators_ua = _get_lang(fields.get('curators'), 'uk', '')
-        curators_en = _get_lang(fields.get('curators'), 'en-US', '')
+        name_ua_raw = _get_lang(fields.get('name'), 'uk', '')
+        name_en_raw = _get_lang(fields.get('name'), 'en-US', '')
+        city_ua_raw = _get_lang(fields.get('city'), 'uk', '')
+        city_en_raw = _get_lang(fields.get('city'), 'en-US', '')
+        address_ua_raw = _get_lang(fields.get('address'), 'uk', '')
+        address_en_raw = _get_lang(fields.get('address'), 'en-US', '')
+        short_desc_ua_raw = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', '')
+        short_desc_en_raw = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', '')
+        founders_ua_raw = _get_lang(fields.get('founders'), 'uk', '')
+        founders_en_raw = _get_lang(fields.get('founders'), 'en-US', '')
+        curators_ua_raw = _get_lang(fields.get('curators'), 'uk', '')
+        curators_en_raw = _get_lang(fields.get('curators'), 'en-US', '')
 
         # Обробка artists
         artists_data = fields.get('artistsList', {})
         artists_ua_raw = _get_lang(artists_data, 'uk', [])
         artists_en_raw = _get_lang(artists_data, 'en-US', [])
-        artists_ua = '\n'.join(str(a) for a in artists_ua_raw) if isinstance(artists_ua_raw, list) else str(artists_ua_raw)
-        artists_en = '\n'.join(str(a) for a in artists_en_raw) if isinstance(artists_en_raw, list) else str(artists_en_raw)
+        artists_ua_raw = '\n'.join(str(a) for a in artists_ua_raw) if isinstance(artists_ua_raw, list) else str(artists_ua_raw)
+        artists_en_raw = '\n'.join(str(a) for a in artists_en_raw) if isinstance(artists_en_raw, list) else str(artists_en_raw)
 
         email = _get_localized_value(fields.get('email'), '')
         phone = _get_localized_value(fields.get('phone'), '')
         website_url = _get_localized_value(fields.get('websiteUrl'), '')
         founding_year = _get_localized_value(fields.get('foundingYear'), None)
         status_val = _get_localized_value(fields.get('status'), True)
-        short_description_ua = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'uk', '')
-        short_description_en = _get_lang(fields.get('shortDescription', fields.get('short_description', {})), 'en-US', '')
-        specialization_ua = _get_lang(fields.get('specialization', {}), 'uk', '')
-        specialization_en = _get_lang(fields.get('specialization', {}), 'en-US', '')
+        specialization_ua_raw = _get_lang(fields.get('specialization', {}), 'uk', '')
+        specialization_en_raw = _get_lang(fields.get('specialization', {}), 'en-US', '')
+
+        # --- АВТОМАТИЧНИЙ ПЕРЕКЛАД ---
+        def has_cyrillic(text):
+            return bool(re.search('[а-яА-ЯёЁіІїЇєЄґҐ]', str(text)))
+
+        def smart_translate(uk_text, en_text, is_address=False):
+            u = str(uk_text).strip() if uk_text else ''
+            e = str(en_text).strip() if en_text else ''
+
+            if not u and e and has_cyrillic(e):
+                u, e = e, ''
+
+            if not u or u == '-':
+                return u, e
+
+            if e and not has_cyrillic(e):
+                return u, e
+
+            text_to_translate = u
+            if is_address:
+                text_to_translate = u.replace('вул.', 'vul.').replace('просп.', 'prosp.').replace('пров.', 'prov.')
+
+            for attempt in range(3):
+                try:
+                    translated = GoogleTranslator(source='uk', target='en').translate(text_to_translate)
+                    if is_address and translated:
+                        translated = translated.replace('vul.', 'St.').replace('prosp.', 'Ave.').replace('prov.', 'Ln.')
+                    time.sleep(1.0)
+                    return u, translated or e or ''
+                except Exception as ex:
+                    wait = (attempt + 1) * 3
+                    logger.warning(f"Webhook translate attempt {attempt+1} failed: {ex}. Waiting {wait}s...")
+                    time.sleep(wait)
+
+            logger.error(f"Webhook translate completely failed for: '{u}'")
+            return u, ''
+
+        name_ua, name_en = smart_translate(name_ua_raw, name_en_raw)
+        city_ua, city_en = smart_translate(city_ua_raw, city_en_raw)
+        address_ua, address_en = smart_translate(address_ua_raw, address_en_raw, is_address=True)
+        short_desc_ua, short_desc_en = smart_translate(short_desc_ua_raw, short_desc_en_raw)
+        specialization_ua, specialization_en = smart_translate(specialization_ua_raw, specialization_en_raw)
+        desc_ua_res, desc_en_res = smart_translate(desc_ua, desc_en)
+        founders_ua, founders_en = smart_translate(founders_ua_raw, founders_en_raw)
+        curators_ua, curators_en = smart_translate(curators_ua_raw, curators_en_raw)
+        artists_ua, artists_en = smart_translate(artists_ua_raw, artists_en_raw)
         
         # Зберігання в базу
         gallery, created = Gallery.objects.update_or_create(
@@ -188,12 +234,12 @@ def contentful_webhook(request):
                 'city_en': city_en,
                 'address_ua': address_ua,
                 'address_en': address_en,
-                'short_description_ua': short_description_ua,
-                'short_description_en': short_description_en,
+                'short_description_ua': short_desc_ua,
+                'short_description_en': short_desc_en,
                 'specialization_ua': specialization_ua,
                 'specialization_en': specialization_en,
-                'description_ua': desc_ua,
-                'description_en': desc_en,
+                'description_ua': desc_ua_res,
+                'description_en': desc_en_res,
                 'founders_ua': founders_ua,
                 'founders_en': founders_en,
                 'curators_ua': curators_ua,
