@@ -2,9 +2,13 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 
 from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView
 from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView
+
+def health_check(request):
+    return JsonResponse({'status': 'ok'})
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,6 +23,9 @@ urlpatterns = [
 
     # --- CONTENTFUL WEBHOOK (автоматична синхронізація) ---
     path('api/webhooks/contentful/', contentful_webhook, name='contentful-webhook'),
+
+    # --- HEALTH CHECK (для Render) ---
+    path('api/health/', health_check, name='health-check'),
 
     # --- AUTH ---
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),
