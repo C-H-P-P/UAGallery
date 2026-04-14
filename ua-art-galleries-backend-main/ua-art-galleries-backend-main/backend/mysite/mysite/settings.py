@@ -6,6 +6,7 @@ PRO VERSION: Using django-environ for 12-factor app compliance.
 from pathlib import Path
 from datetime import timedelta
 import environ
+import sys
 
 # 1. Ініціалізація environ
 env = environ.Env(
@@ -185,6 +186,15 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
 
-# === CONTENTFUL (використовується для синхронізації контенту в БД) ===
+
 CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
 CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
+
+
+if 'pytest' in sys.argv[0]:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+       }
+}
