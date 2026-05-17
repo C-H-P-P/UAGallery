@@ -354,7 +354,7 @@ def run_csv_import_view(request):
         out = StringIO()
         
         # Передаємо stdout напряму в call_command
-        call_command('import_urls', actual_path, '--quiet', stdout=out, stderr=out)
+        call_command('import_urls', actual_path, stdout=out, stderr=out, quiet=True)
         
         result = out.getvalue()
         return HttpResponse(f"<pre>{result}</pre>")
