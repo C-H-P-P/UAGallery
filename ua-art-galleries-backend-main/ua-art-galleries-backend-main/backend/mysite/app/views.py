@@ -318,6 +318,7 @@ def run_csv_import_view(request):
     secret = request.GET.get('secret')
     # Простий захист
     if secret != 'ua-gallery-admin-2024':
+        from django.http import HttpResponse
         return HttpResponse("Unauthorized", status=401)
         
     try:
@@ -325,12 +326,23 @@ def run_csv_import_view(request):
         import sys
         import os
         from django.conf import settings
+        from django.http import HttpResponse
+        from django.core.management import call_command
+        import traceback
         
         # Перехоплюємо вивід команди
         out = StringIO()
         sys.stdout = out
         
-        # Шукаємо файл galleries.csv. Спочатку в BASE_DIR (mysite), потім на рівень вище (backend)
+        # 1. СПОЧАТКУ РОБИМО МІГРАЦІЇ (бо Render скаржився, що їх немає)
+        try:
+            call_command('makemigrations')
+            call_command('migrate')
+            sys.stdout.write("\n--- Міграції успішно застосовані ---\n\n")
+        except Exception as mig_err:
+            sys.stdout.write(f"\n--- Помилка міграцій (ігноруємо і йдемо далі): {str(mig_err)} ---\n\n")
+        
+        # 2. Шукаємо файл galleries.csv. Спочатку в BASE_DIR (mysite), потім на рівень вище (backend)
         base_dir = settings.BASE_DIR
         csv_path_1 = os.path.join(base_dir, 'galleries.csv')
         csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
@@ -353,6 +365,7 @@ def run_csv_import_view(request):
         return HttpResponse(f"<pre>{result}</pre>")
     except Exception as e:
         sys.stdout = sys.__stdout__
+        from django.http import HttpResponse
         import traceback
         error_details = traceback.format_exc()
         return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
@@ -366,11 +379,15 @@ def run_ai_detector_view(request):
     """
     secret = request.GET.get('secret')
     if secret != 'ua-gallery-admin-2024':
+        from django.http import HttpResponse
         return HttpResponse("Unauthorized", status=401)
         
     try:
         from io import StringIO
         import sys
+        from django.http import HttpResponse
+        from django.core.management import call_command
+        import traceback
         
         out = StringIO()
         sys.stdout = out
@@ -383,7 +400,10 @@ def run_ai_detector_view(request):
         return HttpResponse(f"<pre>{result}</pre>")
     except Exception as e:
         sys.stdout = sys.__stdout__
-        return HttpResponse(f"Помилка: {str(e)}", status=500)
+        from django.http import HttpResponse
+        import traceback
+        error_details = traceback.format_exc()
+        return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
 
 
 def _get_localized_value(field_value, default=''):
