@@ -16,25 +16,34 @@ class WebScraper:
     """
     
     @staticmethod
-    def fetch_text_from_url(url):
+    def fetch_text_from_url(url, return_error=False):
         """
         Завантажує HTML за посиланням і повертає очищений текст.
         Для Instagram/Facebook тимчасово повертає заглушку або використовує сторонній сервіс (Apify/ScrapingBee).
         """
-        if 'instagram.com' in url or 'facebook.com' in url:
-            # TODO: Для соцмереж потрібно використовувати API агрегаторів (напр. Apify).
-            # Поки що повертаємо порожній рядок, щоб не блокували IP.
-            logger.warning(f"Прямий скрапінг соцмереж ({url}) обмежений. Потрібен API-сервіс.")
-            return ""
-            
         try:
             if not url:
-                return ""
+                return ("", "empty url") if return_error else ""
             url = url.strip()
             if not url:
-                return ""
+                return ("", "empty url") if return_error else ""
+            if url.startswith("`") and url.endswith("`"):
+                url = url[1:-1].strip()
+            if "http" in url and not url.startswith(("http://", "https://")):
+                start = url.find("http")
+                if start != -1:
+                    url = url[start:].strip().strip("`").strip()
+            url = url.strip().strip(")").strip("]").strip("}").strip(",").strip(".").strip("`").strip()
             if not url.startswith(("http://", "https://")):
                 url = f"https://{url}"
+
+            is_social = "instagram.com" in url or "facebook.com" in url
+            proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or (
+                "https://r.jina.ai/{url}" if os.environ.get("SCRAPER_USE_JINA") == "1" else None
+            )
+            if is_social and not proxy_template:
+                logger.warning(f"Прямий скрапінг соцмереж ({url}) обмежений. Потрібен API-сервіс або проксі.")
+                return ("", "social scraping blocked") if return_error else ""
 
             parsed = urlparse(url)
             referer = f"{parsed.scheme}://{parsed.netloc}/" if parsed.scheme and parsed.netloc else None
@@ -68,7 +77,8 @@ class WebScraper:
             
             content_type = (response.headers.get("Content-Type") or "").lower()
             if "text/plain" in content_type and response.text:
-                return response.text.strip()[:15000]
+                text = response.text.strip()[:15000]
+                return (text, None) if return_error else text
 
             soup = BeautifulSoup(response.content, "html.parser")
             
@@ -80,23 +90,22 @@ class WebScraper:
             text = soup.get_text(separator=' ', strip=True)
             
             # Обмежуємо розмір тексту, щоб не переповнити контекст Gemini (приблизно перші 15000 символів)
-            return text[:15000]
+            text = text[:15000]
+            return (text, None) if return_error else text
             
         except Exception as e:
             try:
-                proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or (
-                    "https://r.jina.ai/{url}" if os.environ.get("SCRAPER_USE_JINA") == "1" else None
-                )
                 if proxy_template and url:
                     proxied_url = proxy_template.format(url=url)
                     response = requests.get(proxied_url, timeout=25)
                     response.raise_for_status()
-                    return (response.text or "").strip()[:15000]
+                    text = (response.text or "").strip()[:15000]
+                    return (text, None) if return_error else text
             except Exception:
                 pass
 
             logger.error(f"Помилка скрапінгу {url}: {str(e)}")
-            return ""
+            return ("", str(e)) if return_error else ""
 
     @staticmethod
     def get_text_hash(text):

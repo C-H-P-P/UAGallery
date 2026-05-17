@@ -250,6 +250,12 @@ def contentful_webhook(request):
         
         # Моніторинг та AI
         monitoring_url = _get_localized_value(fields.get('monitoringUrl'), '')
+        if monitoring_url:
+            m = re.search(r'https?://[^\s\)>\]}",]+', str(monitoring_url))
+            if m:
+                monitoring_url = m.group(0)
+            monitoring_url = str(monitoring_url).strip().strip("`").strip()
+            monitoring_url = monitoring_url.strip().strip(")").strip("]").strip("}").strip(",").strip(".").strip("`").strip()
         source_type = _get_localized_value(fields.get('sourceType'), '')
         
         # Зберігання в базу
@@ -383,6 +389,7 @@ def run_ai_detector_view(request):
         kwargs = {}
         limit = request.GET.get('limit')
         slug = request.GET.get('slug')
+        include_social = request.GET.get('include_social')
         if limit:
             try:
                 kwargs['limit'] = int(limit)
@@ -390,6 +397,8 @@ def run_ai_detector_view(request):
                 return HttpResponse("Invalid limit", status=400)
         if slug:
             kwargs['slug'] = slug
+        if include_social in ('1', 'true', 'True', 'yes', 'on'):
+            kwargs['include_social'] = True
 
         call_command('run_detector', stdout=out, stderr=out, **kwargs)
         result = out.getvalue()

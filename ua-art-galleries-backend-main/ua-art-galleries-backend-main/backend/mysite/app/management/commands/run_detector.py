@@ -14,6 +14,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--limit', type=int, default=None)
         parser.add_argument('--slug', type=str, default=None)
+        parser.add_argument('--debug', action='store_true')
+        parser.add_argument('--include-social', action='store_true')
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Запуск AI-детектора виставок...'))
@@ -28,7 +30,7 @@ class Command(BaseCommand):
             return
             
         parser = GeminiParser()
-        galleries_to_monitor = Gallery.objects.exclude(monitoring_url="")
+        galleries_to_monitor = Gallery.objects.exclude(monitoring_url="").order_by('source_type', 'slug')
         slug = options.get('slug')
         if slug:
             galleries_to_monitor = galleries_to_monitor.filter(slug=slug)
@@ -47,9 +49,28 @@ class Command(BaseCommand):
             self.stdout.write(f'Обробка: {gallery.name_ua} ({url})')
             
             # 1. Скрапінг тексту
-            text = WebScraper.fetch_text_from_url(url)
+            debug = bool(options.get('debug'))
+            include_social = bool(options.get('include_social'))
+            if not include_social and gallery.source_type in ('instagram', 'facebook'):
+                self.stdout.write(self.style.WARNING("  Джерело соцмережа. Пропускаємо (можна увімкнути --include-social)."))
+                continue
+
+            if gallery.source_type in ('instagram', 'facebook') and not (
+                os.environ.get('SCRAPER_USE_JINA') == '1' or os.environ.get('SCRAPER_TEXT_PROXY')
+            ):
+                self.stdout.write(self.style.WARNING("  Джерело соцмережа. Потрібен проксі/агрегатор або сайт галереї. Пропускаємо."))
+                continue
+
+            if debug:
+                text, error = WebScraper.fetch_text_from_url(url, return_error=True)
+            else:
+                text = WebScraper.fetch_text_from_url(url)
+                error = None
             if not text:
-                self.stdout.write(self.style.WARNING(f"  Не вдалося отримати текст з {url}"))
+                if error:
+                    self.stdout.write(self.style.WARNING(f"  Не вдалося отримати текст з {url}. Причина: {error}"))
+                else:
+                    self.stdout.write(self.style.WARNING(f"  Не вдалося отримати текст з {url}"))
                 continue
                 
             # 2. Перевірка хешу (чи є зміни з минулого разу)
