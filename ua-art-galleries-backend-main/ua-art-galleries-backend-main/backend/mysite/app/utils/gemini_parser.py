@@ -1,31 +1,86 @@
 import os
 import json
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 class GeminiParser:
     """
-    Клас для взаємодії з Google Gemini API (модель gemini-1.5-flash).
-    Використовується для витягування структурованих даних (JSON) з сирого тексту сайтів.
+    Клас для взаємодії з Google Gemini API через новий пакет google-genai.
     """
     
     def __init__(self):
         self.api_key = os.environ.get('GEMINI_API_KEY')
+        self.model = os.environ.get('GEMINI_MODEL') or getattr(settings, 'GEMINI_MODEL', None)
         if self.api_key:
-            genai.configure(api_key=self.api_key)
-            # Використовуємо дешеву та швидку модель
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.client = genai.Client(api_key=self.api_key)
         else:
-            self.model = None
+            self.client = None
+    
+    def _model_candidates(self):
+        candidates = []
+        if self.model:
+            candidates.append(self.model)
+        candidates.extend([
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro",
+        ])
+        seen = set()
+        out = []
+        for c in candidates:
+            if not c:
+                continue
+            c = c.strip()
+            if not c:
+                continue
+            if c not in seen:
+                out.append(c)
+                seen.add(c)
+        return out
+    
+    def _normalize_response_text(self, response_text):
+        response_text = (response_text or "").strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        return response_text.strip()
+    
+    def _parse_json_payload(self, response_text):
+        response_text = self._normalize_response_text(response_text)
+        if not response_text:
+            return []
+        try:
+            payload = json.loads(response_text)
+        except json.JSONDecodeError:
+            start = response_text.find("[")
+            end = response_text.rfind("]")
+            if start != -1 and end != -1 and end > start:
+                try:
+                    payload = json.loads(response_text[start : end + 1])
+                except json.JSONDecodeError:
+                    payload = None
+            else:
+                payload = None
+        
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, dict) and "exhibitions" in payload and isinstance(payload["exhibitions"], list):
+            return payload["exhibitions"]
+        return []
 
     def extract_exhibitions(self, text, gallery_name):
         """
         Відправляє текст до Gemini і просить повернути масив виставок у форматі JSON.
         """
-        if not self.model:
+        if not self.client:
             logger.error("GEMINI_API_KEY не знайдено. Парсинг неможливий.")
             return []
             
@@ -45,7 +100,7 @@ class GeminiParser:
    - description (Короткий опис, 2-3 речення)
    - artists (Масив імен художників, які беруть участь)
 3. Якщо виставок не знайдено, поверни порожній масив [].
-4. ТВОЯ ВІДПОВІДЬ ПОВИННА БУТИ ВИКЛЮЧНО ВАЛІДНИМ JSON МАСИВОМ ОБ'ЄКТІВ. БЕЗ ЖОДНИХ ТЕГІВ ```json ТА ІНШОГО ТЕКСТУ.
+4. ТВОЯ ВІДПОВІДЬ ПОВИННА БУТИ ВИКЛЮЧНО ВАЛІДНИМ JSON МАСИВОМ ОБ'ЄКТІВ. БЕЗ ЖОДНИХ ТЕГІВ ТА ІНШОГО ТЕКСТУ.
 
 Ось текст сторінки:
 ---
@@ -53,38 +108,37 @@ class GeminiParser:
 ---
 """
         try:
-            # Налаштування generation_config для вимоги JSON (підтримується в нових версіях)
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1, # Низька температура для більш точних і передбачуваних результатів
-                )
-            )
+            last_exc = None
+            response = None
+            for candidate in self._model_candidates():
+                for model_name in (
+                    [candidate, f"models/{candidate}"] if not candidate.startswith("models/") else [candidate]
+                ):
+                    try:
+                        response = self.client.models.generate_content(
+                            model=model_name,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                temperature=0.1,
+                            ),
+                        )
+                        exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
+                        if exhibitions_data or exhibitions_data == []:
+                            return exhibitions_data
+                    except Exception as e:
+                        last_exc = e
+                        msg = str(e).lower()
+                        if "404" in msg and ("not found" in msg or "is not found" in msg or "models/" in msg):
+                            continue
+                        raise
             
-            response_text = response.text.strip()
-            
-            # Очищення від маркдауну, якщо Gemini все ж його додала
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-                
-            response_text = response_text.strip()
-            
-            # Парсимо JSON
-            exhibitions_data = json.loads(response_text)
-            
-            if isinstance(exhibitions_data, list):
-                return exhibitions_data
-            elif isinstance(exhibitions_data, dict) and "exhibitions" in exhibitions_data:
-                return exhibitions_data["exhibitions"]
-            else:
-                return []
-                
+            if last_exc:
+                raise last_exc
+            return []
         except json.JSONDecodeError as e:
-            logger.error(f"Помилка парсингу JSON від Gemini: {str(e)}\nВідповідь: {response.text}")
+            logger.error(
+                f"Помилка парсингу JSON від Gemini: {str(e)}\nВідповідь: {getattr(response, 'text', 'No text')}"
+            )
             return []
         except Exception as e:
             logger.error(f"Помилка виклику Gemini API: {str(e)}")

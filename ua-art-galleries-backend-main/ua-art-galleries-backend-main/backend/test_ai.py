@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 
 # Тестовий текст (ніби ми скрапером стягнули його з сайту галереї)
 TEST_TEXT = """
@@ -20,8 +20,8 @@ def run_test():
         return
 
     print("Підключення до Gemini AI...")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=api_key)
+    model = os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash"
 
     prompt = f"""
 Ти професійний арт-куратор. Знайди інформацію про виставки.
@@ -34,7 +34,10 @@ def run_test():
     
     print("Відправка запиту...")
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+        )
         print("\n--- ВІДПОВІДЬ ВІД AI (JSON) ---")
         print(response.text.strip())
         print("-------------------------------")

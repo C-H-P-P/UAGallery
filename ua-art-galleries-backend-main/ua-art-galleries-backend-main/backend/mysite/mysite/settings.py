@@ -189,6 +189,7 @@ LOGIN_REDIRECT_URL = '/admin/'
 
 CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
 CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
+SYSTEM_ENDPOINT_SECRET = env('SYSTEM_ENDPOINT_SECRET', default='')
 
 
 if 'pytest' in sys.argv[0]:

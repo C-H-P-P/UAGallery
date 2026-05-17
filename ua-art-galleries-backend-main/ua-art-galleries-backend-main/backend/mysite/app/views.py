@@ -305,12 +305,15 @@ def contentful_webhook(request):
 
 
 import os
+import sys
+import traceback
+from io import StringIO
 from django.http import HttpResponse
 from django.conf import settings
+from django.core.management import call_command
+import hmac
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from django.core.management import call_command
-import traceback
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -320,11 +323,14 @@ def run_csv_import_view(request):
     Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
     """
     secret = request.GET.get('secret')
-    if secret != 'ua-gallery-admin-2024':
+    expected_secret = os.environ.get('SYSTEM_ENDPOINT_SECRET') or getattr(settings, 'SYSTEM_ENDPOINT_SECRET', '')
+    if not expected_secret:
+        return HttpResponse("Service misconfigured", status=503)
+    if not secret or not hmac.compare_digest(str(secret), str(expected_secret)):
         return HttpResponse("Unauthorized", status=401)
         
     try:
-        # Проста перевірка: чи взагалі існує файл?
+        # Шукаємо файл
         base_dir = settings.BASE_DIR
         csv_path_1 = os.path.join(base_dir, 'galleries.csv')
         csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
@@ -338,29 +344,16 @@ def run_csv_import_view(request):
         if not actual_path:
             return HttpResponse(f"Помилка: Файл galleries.csv не знайдено ні в {csv_path_1}, ні в {csv_path_2}", status=404)
             
-        # Якщо файл є, робимо міграції та імпорт
-        from io import StringIO
-        import sys
-        
+        # Робимо імпорт
         out = StringIO()
-        sys.stdout = out
         
-        try:
-            call_command('makemigrations')
-            call_command('migrate')
-            sys.stdout.write("\n--- Міграції успішно застосовані ---\n\n")
-        except Exception as mig_err:
-            sys.stdout.write(f"\n--- Помилка міграцій: {str(mig_err)} ---\n\n")
-            
-        call_command('import_urls', actual_path)
+        # Передаємо stdout напряму в call_command
+        call_command('import_urls', actual_path, stdout=out, stderr=out)
         
-        sys.stdout = sys.__stdout__
         result = out.getvalue()
-        
         return HttpResponse(f"<pre>{result}</pre>")
+        
     except Exception as e:
-        if 'sys' in locals() and hasattr(sys, 'stdout'):
-            sys.stdout = sys.__stdout__
         error_details = traceback.format_exc()
         return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
 
@@ -372,28 +365,37 @@ def run_ai_detector_view(request):
     Використання: /api/system/run-detector/?secret=ВАШ_СЕКРЕТ
     """
     secret = request.GET.get('secret')
-    if secret != 'ua-gallery-admin-2024':
+    expected_secret = os.environ.get('SYSTEM_ENDPOINT_SECRET') or getattr(settings, 'SYSTEM_ENDPOINT_SECRET', '')
+    if not expected_secret:
+        from django.http import HttpResponse
+        return HttpResponse("Service misconfigured", status=503)
+    if not secret or not hmac.compare_digest(str(secret), str(expected_secret)):
         from django.http import HttpResponse
         return HttpResponse("Unauthorized", status=401)
         
     try:
         from io import StringIO
-        import sys
         from django.http import HttpResponse
         from django.core.management import call_command
         import traceback
         
         out = StringIO()
-        sys.stdout = out
-        
-        call_command('run_detector')
-        
-        sys.stdout = sys.__stdout__
+        kwargs = {}
+        limit = request.GET.get('limit')
+        slug = request.GET.get('slug')
+        if limit:
+            try:
+                kwargs['limit'] = int(limit)
+            except ValueError:
+                return HttpResponse("Invalid limit", status=400)
+        if slug:
+            kwargs['slug'] = slug
+
+        call_command('run_detector', stdout=out, stderr=out, **kwargs)
         result = out.getvalue()
         
         return HttpResponse(f"<pre>{result}</pre>")
     except Exception as e:
-        sys.stdout = sys.__stdout__
         from django.http import HttpResponse
         import traceback
         error_details = traceback.format_exc()

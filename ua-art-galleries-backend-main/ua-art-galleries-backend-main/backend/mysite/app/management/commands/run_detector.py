@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'Запускає AI-детектор для моніторингу нових виставок'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--limit', type=int, default=None)
+        parser.add_argument('--slug', type=str, default=None)
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Запуск AI-детектора виставок...'))
         
@@ -25,7 +29,16 @@ class Command(BaseCommand):
             
         parser = GeminiParser()
         galleries_to_monitor = Gallery.objects.exclude(monitoring_url="")
-        count = galleries_to_monitor.count()
+        slug = options.get('slug')
+        if slug:
+            galleries_to_monitor = galleries_to_monitor.filter(slug=slug)
+        limit = options.get('limit')
+        total_count = galleries_to_monitor.count()
+        if limit:
+            galleries_to_monitor = galleries_to_monitor[:limit]
+            count = min(total_count, limit)
+        else:
+            count = total_count
         
         self.stdout.write(f'Знайдено {count} галерей для моніторингу.')
         

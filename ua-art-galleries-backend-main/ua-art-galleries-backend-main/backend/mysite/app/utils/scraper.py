@@ -3,6 +3,10 @@ from bs4 import BeautifulSoup
 import logging
 import hashlib
 import json
+import os
+from urllib.parse import urlparse
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +28,49 @@ class WebScraper:
             return ""
             
         try:
+            if not url:
+                return ""
+            url = url.strip()
+            if not url:
+                return ""
+            if not url.startswith(("http://", "https://")):
+                url = f"https://{url}"
+
+            parsed = urlparse(url)
+            referer = f"{parsed.scheme}://{parsed.netloc}/" if parsed.scheme and parsed.netloc else None
+
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+                "Upgrade-Insecure-Requests": "1",
             }
-            response = requests.get(url, headers=headers, timeout=15)
+            if referer:
+                headers["Referer"] = referer
+
+            session = requests.Session()
+            retries = Retry(
+                total=2,
+                connect=2,
+                read=2,
+                backoff_factor=0.8,
+                status_forcelist=(403, 408, 425, 429, 500, 502, 503, 504),
+                allowed_methods=("GET",),
+                raise_on_status=False,
+            )
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+
+            response = session.get(url, headers=headers, timeout=20, allow_redirects=True)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            content_type = (response.headers.get("Content-Type") or "").lower()
+            if "text/plain" in content_type and response.text:
+                return response.text.strip()[:15000]
+
+            soup = BeautifulSoup(response.content, "html.parser")
             
             # Видаляємо скрипти, стилі, навігацію та футери
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
@@ -43,6 +83,18 @@ class WebScraper:
             return text[:15000]
             
         except Exception as e:
+            try:
+                proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or (
+                    "https://r.jina.ai/{url}" if os.environ.get("SCRAPER_USE_JINA") == "1" else None
+                )
+                if proxy_template and url:
+                    proxied_url = proxy_template.format(url=url)
+                    response = requests.get(proxied_url, timeout=25)
+                    response.raise_for_status()
+                    return (response.text or "").strip()[:15000]
+            except Exception:
+                pass
+
             logger.error(f"Помилка скрапінгу {url}: {str(e)}")
             return ""
 
