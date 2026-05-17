@@ -316,29 +316,36 @@ def run_csv_import_view(request):
     Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
     """
     secret = request.GET.get('secret')
-    # Простий захист (можна замінити на свій пароль)
+    # Простий захист
     if secret != 'ua-gallery-admin-2024':
         return HttpResponse("Unauthorized", status=401)
         
     try:
         from io import StringIO
         import sys
+        import os
+        from django.conf import settings
         
         # Перехоплюємо вивід команди
         out = StringIO()
         sys.stdout = out
         
-        # Запускаємо нашу команду
-        # Шукаємо файл galleries.csv в поточній директорії
-        import os
+        # Шукаємо файл galleries.csv. Спочатку в BASE_DIR (mysite), потім на рівень вище (backend)
         base_dir = settings.BASE_DIR
-        csv_path = os.path.join(base_dir, 'galleries.csv')
+        csv_path_1 = os.path.join(base_dir, 'galleries.csv')
+        csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
         
-        if not os.path.exists(csv_path):
-            sys.stdout = sys.__stdout__
-            return HttpResponse(f"Файл {csv_path} не знайдено!", status=404)
+        actual_path = None
+        if os.path.exists(csv_path_1):
+            actual_path = csv_path_1
+        elif os.path.exists(csv_path_2):
+            actual_path = csv_path_2
             
-        call_command('import_urls', csv_path)
+        if not actual_path:
+            sys.stdout = sys.__stdout__
+            return HttpResponse(f"Помилка: Файл galleries.csv не знайдено ні в {csv_path_1}, ні в {csv_path_2}", status=404)
+            
+        call_command('import_urls', actual_path)
         
         sys.stdout = sys.__stdout__
         result = out.getvalue()
@@ -346,7 +353,9 @@ def run_csv_import_view(request):
         return HttpResponse(f"<pre>{result}</pre>")
     except Exception as e:
         sys.stdout = sys.__stdout__
-        return HttpResponse(f"Помилка: {str(e)}", status=500)
+        import traceback
+        error_details = traceback.format_exc()
+        return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
