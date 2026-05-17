@@ -183,3 +183,44 @@ class FavoriteGallery(models.Model):
 
     def __str__(self):
         return f"{self.user.username} -> {self.gallery.slug}"
+
+class Review(models.Model):
+    user = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.CASCADE, 
+        related_name='reviews',
+        verbose_name="Користувач"
+    )
+    gallery = models.ForeignKey(
+        Gallery, 
+        on_delete=models.CASCADE, 
+        related_name='reviews',
+        verbose_name="Галерея"
+    )
+    rating = models.IntegerField(
+        choices=[(i, i) for i in range(1, 6)],
+        verbose_name="Оцінка"
+    )
+    text = models.TextField(
+        verbose_name="Текст відгуку",
+        help_text="Коментар користувача про галерею"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name="Час створення"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, 
+        verbose_name="Час оновлення"
+    )
+
+    class Meta:
+        db_table = 'gallery_review'
+        # Забороняємо одному користувачу залишати більше одного відгуку на одну галерею
+        unique_together = ('user', 'gallery')
+        verbose_name = "Відгук"
+        verbose_name_plural = "Відгуки"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Відгук {self.user.username} на {self.gallery.name_ua} ({self.rating}/5)"

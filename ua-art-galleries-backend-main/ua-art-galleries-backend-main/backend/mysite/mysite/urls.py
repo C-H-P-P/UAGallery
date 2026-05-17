@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 
-from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView
+from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView
 from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView
 
 def health_check(request):
@@ -16,6 +16,7 @@ urlpatterns = [
     # --- GALLERY API (дані з Neon PostgreSQL) ---
     path('api/galleries/', GalleryListView.as_view(), name='gallery-list'),
     path('api/galleries/<slug:slug>/', GalleryDetailView.as_view(), name='gallery-detail'),
+    path('api/galleries/<slug:slug>/reviews/', ReviewListCreateView.as_view(), name='gallery-reviews'),
 
     # --- FAVORITES API ---
     path('api/favorites/', FavoriteListView.as_view(), name='favorites-list'),

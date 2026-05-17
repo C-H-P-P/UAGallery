@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Gallery
+from .models import Gallery, Review
 from django.contrib.auth.models import User
 
 class DynamicLocaleMixin:
@@ -114,3 +114,16 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source='user.username')
+    
+    class Meta:
+        model = Review
+        fields = ['id', 'user', 'username', 'gallery', 'rating', 'text', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'gallery']
+
+    def validate_rating(self, value):
+        if not (1 <= value <= 5):
+            raise serializers.ValidationError("Оцінка повинна бути від 1 до 5.")
+        return value

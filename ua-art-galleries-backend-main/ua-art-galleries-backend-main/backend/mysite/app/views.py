@@ -9,18 +9,18 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.views import APIView
 from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from deep_translator import GoogleTranslator
 
-from .models import Gallery, FavoriteGallery
-from .serializers import GalleryListSerializer, GalleryDetailSerializer
+from .models import Gallery, FavoriteGallery, Review
+from .serializers import GalleryListSerializer, GalleryDetailSerializer, ReviewSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,31 @@ class FavoriteToggleView(APIView):
             return Response({'detail': 'Removed from favorites', 'is_favorite': False}, status=status.HTTP_200_OK)
         
         return Response({'detail': 'Added to favorites', 'is_favorite': True}, status=status.HTTP_200_OK)
+
+
+class ReviewListCreateView(generics.ListCreateAPIView):
+    """
+    GET /api/galleries/<slug>/reviews/ - Отримати всі відгуки до галереї (доступно всім)
+    POST /api/galleries/<slug>/reviews/ - Додати відгук (тільки для авторизованих)
+    """
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        slug = self.kwargs.get('slug')
+        gallery = get_object_or_404(Gallery, slug=slug)
+        return Review.objects.filter(gallery=gallery).select_related('user')
+
+    def perform_create(self, serializer):
+        slug = self.kwargs.get('slug')
+        gallery = get_object_or_404(Gallery, slug=slug)
+        
+        # Перевірка: чи не залишав вже користувач відгук на цю галерею
+        if Review.objects.filter(user=self.request.user, gallery=gallery).exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"detail": "Ви вже залишили відгук для цієї галереї."})
+            
+        serializer.save(user=self.request.user, gallery=gallery)
 
 
 @csrf_exempt
