@@ -328,16 +328,16 @@ def run_csv_import_view(request):
     Секретний ендпоінт для імпорту CSV без доступу до Shell.
     Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
     """
-    secret = request.GET.get('secret')
-    expected_secret = os.environ.get('SYSTEM_ENDPOINT_SECRET') or getattr(settings, 'SYSTEM_ENDPOINT_SECRET', '')
-    if not expected_secret:
-        return HttpResponse("Service misconfigured", status=503)
-    if not secret or not hmac.compare_digest(str(secret), str(expected_secret)):
-        return HttpResponse("Unauthorized", status=401)
-        
     try:
+        secret = request.GET.get('secret')
+        expected_secret = os.environ.get('SYSTEM_ENDPOINT_SECRET') or getattr(settings, 'SYSTEM_ENDPOINT_SECRET', '')
+        if not expected_secret:
+            return HttpResponse("Service misconfigured", status=503)
+        if not secret or not hmac.compare_digest(str(secret), str(expected_secret)):
+            return HttpResponse("Unauthorized", status=401)
+
         # Шукаємо файл
-        base_dir = settings.BASE_DIR
+        base_dir = str(getattr(settings, 'BASE_DIR', '') or '')
         csv_path_1 = os.path.join(base_dir, 'galleries.csv')
         csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
         
@@ -354,7 +354,7 @@ def run_csv_import_view(request):
         out = StringIO()
         
         # Передаємо stdout напряму в call_command
-        call_command('import_urls', actual_path, stdout=out, stderr=out)
+        call_command('import_urls', actual_path, '--quiet', stdout=out, stderr=out)
         
         result = out.getvalue()
         return HttpResponse(f"<pre>{result}</pre>")

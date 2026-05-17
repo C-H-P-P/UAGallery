@@ -44,9 +44,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('csv_file', type=str, help='Шлях до CSV файлу (наприклад, galleries.csv)')
+        parser.add_argument('--quiet', action='store_true')
 
     def handle(self, *args, **options):
         csv_file_path = options['csv_file']
+        quiet = bool(options.get('quiet'))
         
         try:
             file = None
@@ -112,10 +114,12 @@ class Command(BaseCommand):
                         gallery.monitoring_url = primary_link
                         gallery.source_type = source_type
                         gallery.save(update_fields=['monitoring_url', 'source_type'])
-                        self.stdout.write(self.style.SUCCESS(f"Оновлено: {gallery.slug} -> {primary_link}"))
+                        if not quiet:
+                            self.stdout.write(self.style.SUCCESS(f"Оновлено: {gallery.slug} -> {primary_link}"))
                         updated_count += 1
                     else:
-                        self.stdout.write(self.style.WARNING(f"Не знайдено в базі: {slug or name}"))
+                        if not quiet:
+                            self.stdout.write(self.style.WARNING(f"Не знайдено в базі: {slug or name}"))
                         not_found_count += 1
                         
                 self.stdout.write(self.style.SUCCESS(f'\nГотово! Оновлено: {updated_count}. Не знайдено: {not_found_count}.'))
