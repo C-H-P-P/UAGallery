@@ -305,8 +305,12 @@ def contentful_webhook(request):
 
 
 import os
-from django.core.management import call_command
 from django.http import HttpResponse
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from django.core.management import call_command
+import traceback
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -316,33 +320,11 @@ def run_csv_import_view(request):
     Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
     """
     secret = request.GET.get('secret')
-    # Простий захист
     if secret != 'ua-gallery-admin-2024':
-        from django.http import HttpResponse
         return HttpResponse("Unauthorized", status=401)
         
     try:
-        from io import StringIO
-        import sys
-        import os
-        from django.conf import settings
-        from django.http import HttpResponse
-        from django.core.management import call_command
-        import traceback
-        
-        # Перехоплюємо вивід команди
-        out = StringIO()
-        sys.stdout = out
-        
-        # 1. СПОЧАТКУ РОБИМО МІГРАЦІЇ (бо Render скаржився, що їх немає)
-        try:
-            call_command('makemigrations')
-            call_command('migrate')
-            sys.stdout.write("\n--- Міграції успішно застосовані ---\n\n")
-        except Exception as mig_err:
-            sys.stdout.write(f"\n--- Помилка міграцій (ігноруємо і йдемо далі): {str(mig_err)} ---\n\n")
-        
-        # 2. Шукаємо файл galleries.csv. Спочатку в BASE_DIR (mysite), потім на рівень вище (backend)
+        # Проста перевірка: чи взагалі існує файл?
         base_dir = settings.BASE_DIR
         csv_path_1 = os.path.join(base_dir, 'galleries.csv')
         csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
@@ -354,8 +336,21 @@ def run_csv_import_view(request):
             actual_path = csv_path_2
             
         if not actual_path:
-            sys.stdout = sys.__stdout__
             return HttpResponse(f"Помилка: Файл galleries.csv не знайдено ні в {csv_path_1}, ні в {csv_path_2}", status=404)
+            
+        # Якщо файл є, робимо міграції та імпорт
+        from io import StringIO
+        import sys
+        
+        out = StringIO()
+        sys.stdout = out
+        
+        try:
+            call_command('makemigrations')
+            call_command('migrate')
+            sys.stdout.write("\n--- Міграції успішно застосовані ---\n\n")
+        except Exception as mig_err:
+            sys.stdout.write(f"\n--- Помилка міграцій: {str(mig_err)} ---\n\n")
             
         call_command('import_urls', actual_path)
         
@@ -364,9 +359,8 @@ def run_csv_import_view(request):
         
         return HttpResponse(f"<pre>{result}</pre>")
     except Exception as e:
-        sys.stdout = sys.__stdout__
-        from django.http import HttpResponse
-        import traceback
+        if 'sys' in locals() and hasattr(sys, 'stdout'):
+            sys.stdout = sys.__stdout__
         error_details = traceback.format_exc()
         return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
 
