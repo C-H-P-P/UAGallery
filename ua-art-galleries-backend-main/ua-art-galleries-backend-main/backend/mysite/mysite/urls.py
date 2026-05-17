@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 
-from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView
+from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView, run_csv_import_view, run_ai_detector_view
 from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView
 
 def health_check(request):
@@ -27,6 +27,10 @@ urlpatterns = [
 
     # --- HEALTH CHECK (для Render) ---
     path('api/health/', health_check, name='health-check'),
+
+    # --- SYSTEM & AUTOMATION ---
+    path('api/system/import-csv/', run_csv_import_view, name='system-import-csv'),
+    path('api/system/run-detector/', run_ai_detector_view, name='system-run-detector'),
 
     # --- AUTH ---
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),

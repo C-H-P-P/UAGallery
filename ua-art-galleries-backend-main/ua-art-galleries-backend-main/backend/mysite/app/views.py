@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from deep_translator import GoogleTranslator
 
-from .models import Gallery, FavoriteGallery, Review
+from .models import Gallery, FavoriteGallery, Review, Exhibition
 from .serializers import GalleryListSerializer, GalleryDetailSerializer, ReviewSerializer
 
 logger = logging.getLogger(__name__)
@@ -248,6 +248,10 @@ def contentful_webhook(request):
         curators_ua, curators_en = smart_translate(curators_ua_raw, curators_en_raw)
         artists_ua, artists_en = smart_translate(artists_ua_raw, artists_en_raw)
         
+        # Моніторинг та AI
+        monitoring_url = _get_localized_value(fields.get('monitoringUrl'), '')
+        source_type = _get_localized_value(fields.get('sourceType'), '')
+        
         # Зберігання в базу
         gallery, created = Gallery.objects.update_or_create(
             slug=slug,
@@ -277,6 +281,8 @@ def contentful_webhook(request):
                 'founding_year': founding_year,
                 'social_links': social_links,
                 'image': image_url,
+                'monitoring_url': monitoring_url,
+                'source_type': source_type,
             },
         )
         
@@ -296,6 +302,79 @@ def contentful_webhook(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+import os
+from django.core.management import call_command
+from django.http import HttpResponse
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def run_csv_import_view(request):
+    """
+    Секретний ендпоінт для імпорту CSV без доступу до Shell.
+    Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
+    """
+    secret = request.GET.get('secret')
+    # Простий захист (можна замінити на свій пароль)
+    if secret != 'ua-gallery-admin-2024':
+        return HttpResponse("Unauthorized", status=401)
+        
+    try:
+        from io import StringIO
+        import sys
+        
+        # Перехоплюємо вивід команди
+        out = StringIO()
+        sys.stdout = out
+        
+        # Запускаємо нашу команду
+        # Шукаємо файл galleries.csv в поточній директорії
+        import os
+        base_dir = settings.BASE_DIR
+        csv_path = os.path.join(base_dir, 'galleries.csv')
+        
+        if not os.path.exists(csv_path):
+            sys.stdout = sys.__stdout__
+            return HttpResponse(f"Файл {csv_path} не знайдено!", status=404)
+            
+        call_command('import_urls', csv_path)
+        
+        sys.stdout = sys.__stdout__
+        result = out.getvalue()
+        
+        return HttpResponse(f"<pre>{result}</pre>")
+    except Exception as e:
+        sys.stdout = sys.__stdout__
+        return HttpResponse(f"Помилка: {str(e)}", status=500)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def run_ai_detector_view(request):
+    """
+    Секретний ендпоінт для запуску AI-детектора без доступу до Shell.
+    Використання: /api/system/run-detector/?secret=ВАШ_СЕКРЕТ
+    """
+    secret = request.GET.get('secret')
+    if secret != 'ua-gallery-admin-2024':
+        return HttpResponse("Unauthorized", status=401)
+        
+    try:
+        from io import StringIO
+        import sys
+        
+        out = StringIO()
+        sys.stdout = out
+        
+        call_command('run_detector')
+        
+        sys.stdout = sys.__stdout__
+        result = out.getvalue()
+        
+        return HttpResponse(f"<pre>{result}</pre>")
+    except Exception as e:
+        sys.stdout = sys.__stdout__
+        return HttpResponse(f"Помилка: {str(e)}", status=500)
 
 
 def _get_localized_value(field_value, default=''):

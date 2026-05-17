@@ -74,6 +74,20 @@ class Gallery(models.Model):
     latitude = models.FloatField(null=True, blank=True, verbose_name="Широта")
     longitude = models.FloatField(null=True, blank=True, verbose_name="Довгота")
 
+    # === МОНІТОРИНГ ТА AI ===
+    monitoring_url = models.URLField(
+        blank=True, default="", verbose_name="URL для моніторингу",
+        help_text="Посилання на сайт, Instagram або Facebook для парсингу подій"
+    )
+    source_type = models.CharField(
+        max_length=50, blank=True, default="", verbose_name="Тип джерела",
+        help_text="Наприклад: instagram, website, facebook"
+    )
+    last_scraped_hash = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Хеш останнього сканування",
+        help_text="Використовується детектором для відстеження змін"
+    )
+
     # === ЧАСОВІ МІТКИ ===
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -224,3 +238,43 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Відгук {self.user.username} на {self.gallery.name_ua} ({self.rating}/5)"
+
+
+class Exhibition(models.Model):
+    """
+    Модель для зберігання виставок, які автоматично парсяться через AI-Детектор.
+    """
+    gallery = models.ForeignKey(
+        Gallery, 
+        on_delete=models.CASCADE, 
+        related_name='exhibitions',
+        verbose_name="Галерея"
+    )
+    title = models.CharField(max_length=300, verbose_name="Назва виставки")
+    description = models.TextField(blank=True, default="", verbose_name="Опис")
+    
+    start_date = models.DateField(null=True, blank=True, verbose_name="Дата початку")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Дата завершення")
+    
+    artists = models.JSONField(
+        default=list, blank=True, verbose_name="Художники",
+        help_text='Список художників у форматі масиву рядків'
+    )
+    
+    is_active = models.BooleanField(default=True, verbose_name="Активна?")
+    source_text = models.TextField(
+        blank=True, default="", verbose_name="Оригінальний текст (з парсера)",
+        help_text="Сирий текст, з якого AI згенерував цю виставку (для дебагу)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'exhibition'
+        verbose_name = "Виставка"
+        verbose_name_plural = "Виставки"
+        ordering = ['-start_date']
+
+    def __str__(self):
+        return f"{self.title} ({self.gallery.name_ua})"
