@@ -93,6 +93,14 @@ class Gallery(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            address_fields = {'address_ua', 'city_ua', 'address_en', 'city_en', 'latitude', 'longitude'}
+            if not any(f in update_fields for f in address_fields):
+                super().save(*args, **kwargs)
+                return
+        
+        # Original code below...
         # Перевіряємо, чи потрібно геокодування
         geocode_needed = False
         if self.pk:

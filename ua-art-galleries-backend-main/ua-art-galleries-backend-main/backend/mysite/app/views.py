@@ -329,6 +329,7 @@ def run_csv_import_view(request):
     Використання: /api/system/import-csv/?secret=ВАШ_СЕКРЕТ
     """
     try:
+        debug = request.GET.get('debug') in ('1', 'true', 'True', 'yes', 'on')
         secret = request.GET.get('secret')
         expected_secret = os.environ.get('SYSTEM_ENDPOINT_SECRET') or getattr(settings, 'SYSTEM_ENDPOINT_SECRET', '')
         if not expected_secret:
@@ -359,9 +360,19 @@ def run_csv_import_view(request):
         result = out.getvalue()
         return HttpResponse(f"<pre>{result}</pre>")
         
-    except Exception as e:
+    except BaseException:
         error_details = traceback.format_exc()
-        return HttpResponse(f"Internal Error:\n<pre>{error_details}</pre>", status=500)
+        if debug:
+            base_dir = str(getattr(settings, 'BASE_DIR', '') or '')
+            csv_path_1 = os.path.join(base_dir, 'galleries.csv')
+            csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
+            info = (
+                f"BASE_DIR={base_dir}\n"
+                f"csv_path_1={csv_path_1} exists={os.path.exists(csv_path_1)}\n"
+                f"csv_path_2={csv_path_2} exists={os.path.exists(csv_path_2)}\n"
+            )
+            return HttpResponse(f"Internal Error:\n<pre>{info}\n{error_details}</pre>", status=500)
+        return HttpResponse("Internal Server Error", status=500)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
