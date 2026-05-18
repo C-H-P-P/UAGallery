@@ -13,10 +13,12 @@ class GeminiParser:
     """
     
     def __init__(self):
-        self.api_key = os.environ.get('GEMINI_API_KEY')
         self.model = os.environ.get('GEMINI_MODEL') or getattr(settings, 'GEMINI_MODEL', None)
-        if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
+        keys_str = os.environ.get('GEMINI_API_KEY', '')
+        self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
+        self.current_key_index = 0
+        if self.api_keys:
+            self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
         else:
             self.client = None
     
@@ -130,6 +132,19 @@ class GeminiParser:
                         msg = str(e).lower()
                         if "404" in msg and ("not found" in msg or "is not found" in msg or "models/" in msg):
                             continue
+                        if ("429" in msg or "quota" in msg or "exhausted" in msg) and len(self.api_keys) > 1:
+                            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                            self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
+                            logger.info(f"Switching to Gemini API Key #{self.current_key_index + 1}")
+                            # Retry the same model with the new key
+                            response = self.client.models.generate_content(
+                                model=model_name,
+                                contents=prompt,
+                                config=types.GenerateContentConfig(temperature=0.1),
+                            )
+                            exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
+                            if exhibitions_data or exhibitions_data == []:
+                                return exhibitions_data
                         raise
             
             if last_exc:
