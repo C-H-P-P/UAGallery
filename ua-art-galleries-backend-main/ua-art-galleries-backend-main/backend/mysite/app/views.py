@@ -391,12 +391,11 @@ def run_ai_detector_view(request):
         return HttpResponse("Unauthorized", status=401)
         
     try:
-        from io import StringIO
         from django.http import HttpResponse
         from django.core.management import call_command
         import traceback
+        import threading
         
-        out = StringIO()
         kwargs = {}
         limit = request.GET.get('limit')
         slug = request.GET.get('slug')
@@ -411,10 +410,21 @@ def run_ai_detector_view(request):
         if include_social in ('1', 'true', 'True', 'yes', 'on'):
             kwargs['include_social'] = True
 
-        call_command('run_detector', stdout=out, stderr=out, **kwargs)
-        result = out.getvalue()
+        def background_task():
+            try:
+                call_command('run_detector', **kwargs)
+            except Exception as e:
+                logger.exception("Помилка фонового детектора")
+                
+        thread = threading.Thread(target=background_task)
+        thread.start()
         
-        return HttpResponse(f"<pre>{result}</pre>")
+        return HttpResponse(
+            "<h3>✅ Процес сканування запущено у фоновому режимі!</h3>"
+            "<p>Оскільки перевірка 176 сайтів займає кілька хвилин, скрипт працюватиме у фоні, "
+            "щоб сервер Render не видавав помилку тайм-ауту (Internal Server Error) через 30 секунд.</p>"
+            "<p>Ви можете закрити цю сторінку. Відкрийте логи Render (вкладка Logs), щоб бачити прогрес сканування в реальному часі.</p>"
+        )
     except Exception as e:
         from django.http import HttpResponse
         import traceback
