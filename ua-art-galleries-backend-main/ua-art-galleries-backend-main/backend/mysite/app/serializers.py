@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Gallery, Review
+from .models import Gallery, Review, Exhibition
 from django.contrib.auth.models import User
 
 class DynamicLocaleMixin:
@@ -55,6 +55,13 @@ class GalleryListSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
         ]
 
 
+class ExhibitionSerializer(serializers.ModelSerializer):
+    """Серіалізатор для виставок"""
+    class Meta:
+        model = Exhibition
+        fields = ['id', 'title', 'description', 'start_date', 'end_date', 'source_url', 'is_active', 'artists']
+
+
 class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
     """Серіалізатор для деталей галереї (повна інфо)"""
     name = serializers.SerializerMethodField()
@@ -68,6 +75,8 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
     curators = serializers.SerializerMethodField()
     artists = serializers.SerializerMethodField()
     specialization = serializers.SerializerMethodField()
+    
+    exhibitions = serializers.SerializerMethodField()
 
     def get_description(self, obj): return self.resolve_locale(obj, 'description')
     def get_full_description(self, obj): return self.resolve_locale(obj, 'description')
@@ -75,6 +84,11 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
     def get_curators(self, obj): return self.resolve_locale(obj, 'curators')
     def get_artists(self, obj): return self.resolve_locale(obj, 'artists')
     def get_specialization(self, obj): return self.resolve_locale(obj, 'specialization')
+    
+    def get_exhibitions(self, obj):
+        # Повертаємо тільки активні виставки для цієї галереї
+        exhibitions = obj.exhibitions.filter(is_active=True).order_by('-start_date')
+        return ExhibitionSerializer(exhibitions, many=True).data
 
     class Meta:
         model = Gallery
@@ -100,6 +114,7 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
             'website_url',
             'founding_year',
             'social_links',
+            'exhibitions',
             'created_at',
             'updated_at',
             # Backwards compat manual fields
