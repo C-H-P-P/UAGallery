@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Gallery, Review
+from .models import Gallery, Review, Exhibition
+
+@admin.register(Exhibition)
+class ExhibitionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'gallery', 'start_date', 'end_date', 'is_active')
+    list_filter = ('is_active', 'start_date', 'gallery')
+    search_fields = ('title', 'gallery__name_ua', 'description', 'artists')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(Review)
