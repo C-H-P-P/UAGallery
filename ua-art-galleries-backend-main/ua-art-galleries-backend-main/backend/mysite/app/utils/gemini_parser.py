@@ -110,51 +110,56 @@ class GeminiParser:
 ---
 """
         try:
-            last_exc = None
-            response = None
-            for candidate in self._model_candidates():
-                for model_name in (
-                    [candidate, f"models/{candidate}"] if not candidate.startswith("models/") else [candidate]
-                ):
+            prompt = self.base_prompt.replace("{gallery_name}", gallery_name).replace("{text}", text[:12000])
+            
+            # Спроба з різними моделями, починаючи з найшвидшої
+            models_to_try = [
+                'gemini-2.0-flash',
+                'gemini-1.5-flash',
+                'gemini-1.5-pro'
+            ]
+            
+            for model_name in models_to_try:
+                # Зберігаємо скільки ключів ми вже спробували для цієї моделі
+                keys_tried = 0
+                max_keys = len(self.api_keys)
+                
+                while keys_tried < max_keys:
                     try:
+                        logger.info(f"Спроба використання моделі {model_name} з ключем #{self.current_key_index + 1}")
                         response = self.client.models.generate_content(
                             model=model_name,
                             contents=prompt,
-                            config=types.GenerateContentConfig(
-                                temperature=0.1,
-                            ),
+                            config=self.generation_config,
                         )
+                        
                         exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
-                        if exhibitions_data or exhibitions_data == []:
+                        
+                        # Якщо парсинг успішний (навіть якщо це порожній список [])
+                        if exhibitions_data is not None:
                             return exhibitions_data
+                            
+                        # Якщо AI повернув щось незрозуміле, спробуємо іншу модель
+                        break
+                        
                     except Exception as e:
-                        last_exc = e
                         msg = str(e).lower()
-                        if "404" in msg and ("not found" in msg or "is not found" in msg or "models/" in msg):
-                            continue
-                        if ("429" in msg or "quota" in msg or "exhausted" in msg) and len(self.api_keys) > 1:
-                            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-                            self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
-                            logger.info(f"Switching to Gemini API Key #{self.current_key_index + 1}")
-                            # Retry the same model with the new key
-                            response = self.client.models.generate_content(
-                                model=model_name,
-                                contents=prompt,
-                                config=types.GenerateContentConfig(temperature=0.1),
-                            )
-                            exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
-                            if exhibitions_data or exhibitions_data == []:
-                                return exhibitions_data
-                        raise
+                        if "429" in msg or "quota" in msg or "exhausted" in msg:
+                            keys_tried += 1
+                            if keys_tried < max_keys:
+                                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                                self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
+                                logger.warning(f"Ліміт або 429. Перемикаємось на ключ #{self.current_key_index + 1}...")
+                                continue
+                            else:
+                                logger.error(f"Всі {max_keys} ключів вичерпали ліміти для {model_name}!")
+                                break # Переходимо до наступної моделі
+                        else:
+                            logger.error(f"Помилка моделі {model_name}: {str(e)}")
+                            break # Переходимо до наступної моделі
             
-            if last_exc:
-                raise last_exc
             return []
-        except json.JSONDecodeError as e:
-            logger.error(
-                f"Помилка парсингу JSON від Gemini: {str(e)}\nВідповідь: {getattr(response, 'text', 'No text')}"
-            )
-            return []
+            
         except Exception as e:
             logger.error(f"Помилка виклику Gemini API: {str(e)}")
             return []
