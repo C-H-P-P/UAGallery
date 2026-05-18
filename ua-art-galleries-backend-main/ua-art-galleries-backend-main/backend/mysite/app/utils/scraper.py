@@ -41,9 +41,18 @@ class WebScraper:
             proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or (
                 "https://r.jina.ai/{url}" if os.environ.get("SCRAPER_USE_JINA") == "1" else None
             )
+            
             if is_social and not proxy_template:
                 logger.warning(f"Прямий скрапінг соцмереж ({url}) обмежений. Потрібен API-сервіс або проксі.")
                 return ("", "social scraping blocked") if return_error else ""
+
+            # Якщо увімкнено Jina і це соцмережа - йдемо напряму через Jina
+            if is_social and proxy_template:
+                proxied_url = proxy_template.format(url=url)
+                response = requests.get(proxied_url, timeout=25)
+                response.raise_for_status()
+                text = (response.text or "").strip()[:15000]
+                return (text, None) if return_error else text
 
             parsed = urlparse(url)
             referer = f"{parsed.scheme}://{parsed.netloc}/" if parsed.scheme and parsed.netloc else None
@@ -89,7 +98,14 @@ class WebScraper:
             # Отримуємо текст
             text = soup.get_text(separator=' ', strip=True)
             
-            # Обмежуємо розмір тексту, щоб не переповнити контекст Gemini (приблизно перші 15000 символів)
+            # Якщо текст занадто короткий (ймовірно, порожній JS-шаблон), пробуємо Jina
+            if len(text) < 150 and proxy_template:
+                proxied_url = proxy_template.format(url=url)
+                resp = requests.get(proxied_url, timeout=25)
+                if resp.status_code == 200:
+                    text = (resp.text or "").strip()
+            
+            # Обмежуємо розмір тексту
             text = text[:15000]
             return (text, None) if return_error else text
             
