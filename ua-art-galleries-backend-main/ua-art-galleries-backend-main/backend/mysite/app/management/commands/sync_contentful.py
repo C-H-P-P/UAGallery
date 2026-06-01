@@ -204,7 +204,6 @@ class Command(BaseCommand):
                 gallery, created = Gallery.objects.update_or_create(
                     slug=slug,
                     defaults={
-                        'contentful_id': contentful_id,
                         'name_ua': name_ua,
                         'name_en': name_en,
                         'city_ua': city_ua,
