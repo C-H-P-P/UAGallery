@@ -1,4 +1,4 @@
-# mysite/middleware.py
+                      
 
 class DisableCSRFMiddleware:
    

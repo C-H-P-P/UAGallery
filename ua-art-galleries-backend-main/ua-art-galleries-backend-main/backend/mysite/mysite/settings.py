@@ -8,29 +8,29 @@ from datetime import timedelta
 import environ
 import sys
 
-# 1. Ініціалізація environ
+                          
 env = environ.Env(
-    # Встановлюємо значення за замовчуванням (безпечні для розробки, небезпечні для проду)
+                                                                                          
     DJANGO_DEBUG=(bool, False),
     DJANGO_ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
 )
 
-# Читаємо .env файл, якщо він існує (зручно для локального запуску без Docker)
+                                                                              
 BASE_DIR = Path(__file__).resolve().parent.parent
 environ.Env.read_env(BASE_DIR / '.env')
 
-# === CORE SETTINGS ===
+                       
 
-# Секретний ключ має бути обов'язковим. Якщо його немає в змінних — падаємо з помилкою (на проді).
-# Для дева можна залишити дефолт, але краще передавати через docker-compose.
+                                                                                                  
+                                                                            
 SECRET_KEY = env('DJANGO_SECRET_KEY', default='django-insecure-dev-key-change-me-in-prod')
 
 DEBUG = env('DJANGO_DEBUG')
 
-# PRO LOGIC:
-# Якщо Debug=True, дозволяємо всім (зручно для дева).
-# Якщо Debug=False (прод), читаємо суворий список з env.
+            
+                                                     
+                                                        
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
     CORS_ALLOW_ALL_ORIGINS = True
@@ -39,15 +39,15 @@ else:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS')
 
-# Це важливо для Docker/Nginx, щоб не було помилки "CSRF verification failed"
+                                                                             
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
-    'http://localhost:5173',  # Твій React
+    'http://localhost:5173',              
     'http://127.0.0.1:5173',
 ]
 
-# === APPS ===
+              
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third party
+                 
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
 
-    # Local
+           
     'app',
 ]
 
@@ -76,11 +76,11 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # Має бути якомога вище
+    'corsheaders.middleware.CorsMiddleware',                        
     'django.middleware.common.CommonMiddleware',
     
-    # ⚠️ УВАГА: Вимикати CSRF — це погана практика, якщо ви використовуєте Cookies.
-    # Краще налаштувати CSRF_TRUSTED_ORIGINS. Але якщо дуже треба — залиште.
+                                                                                   
+                                                                            
     'mysite.middleware.DisableCSRFMiddleware', 
 
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -110,7 +110,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'mysite.wsgi.application'
 
 
-# === DATABASE ===
+                  
 
 DATABASES = {
     'default': {
@@ -121,13 +121,13 @@ DATABASES = {
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT'),
         'OPTIONS': {
-            'sslmode': 'require',  # Це важливо для Neon!
+            'sslmode': 'require',                        
         },
     }
 }
 
 
-# === PASSWORD VALIDATION ===
+                             
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -137,7 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# === I18N & L10N ===
+                     
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -145,7 +145,7 @@ USE_I18N = True
 USE_TZ = True
 
 
-# === STATIC & MEDIA ===
+                        
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -157,7 +157,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# === CUSTOM AUTH SETTINGS ===
+                              
 
 SITE_ID = 1
 
@@ -171,7 +171,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-# SIMPLE JWT
+            
 MINIMAL_JWT_ACCESS_LIFETIME = timedelta(minutes=60)
 
 REST_AUTH = {

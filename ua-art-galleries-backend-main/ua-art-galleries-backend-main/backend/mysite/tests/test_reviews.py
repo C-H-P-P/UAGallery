@@ -39,7 +39,7 @@ def test_create_review_unauthenticated(api_client, gallery):
         "rating": 4,
         "text": "Спроба відгуку"
     })
-    # Перевіряємо, що неавторизований юзер отримує 401 Unauthorized або 403 Forbidden
+                                                                                     
     assert response.status_code in [401, 403]
 
 @pytest.mark.django_db
@@ -58,12 +58,12 @@ def test_create_review_authenticated(api_client, gallery, user):
 def test_create_duplicate_review(api_client, gallery, user):
     api_client.force_authenticate(user=user)
     
-    # Перший відгук - ок
+                        
     api_client.post(f'/api/galleries/{gallery.slug}/reviews/', {
         "rating": 5, "text": "Супер"
     })
     
-    # Другий відгук від того ж юзера - помилка
+                                              
     response = api_client.post(f'/api/galleries/{gallery.slug}/reviews/', {
         "rating": 1, "text": "Погано"
     })

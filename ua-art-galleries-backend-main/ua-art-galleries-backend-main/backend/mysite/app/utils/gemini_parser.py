@@ -112,7 +112,7 @@ class GeminiParser:
         try:
             prompt = self.base_prompt.replace("{gallery_name}", gallery_name).replace("{text}", text[:12000])
             
-            # Спроба з різними моделями, починаючи з найшвидшої
+                                                               
             models_to_try = [
                 'gemini-2.0-flash',
                 'gemini-1.5-flash',
@@ -120,7 +120,7 @@ class GeminiParser:
             ]
             
             for model_name in models_to_try:
-                # Зберігаємо скільки ключів ми вже спробували для цієї моделі
+                                                                             
                 keys_tried = 0
                 max_keys = len(self.api_keys)
                 
@@ -135,11 +135,11 @@ class GeminiParser:
                         
                         exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
                         
-                        # Якщо парсинг успішний (навіть якщо це порожній список [])
+                                                                                   
                         if exhibitions_data is not None:
                             return exhibitions_data
                             
-                        # Якщо AI повернув щось незрозуміле, спробуємо іншу модель
+                                                                                  
                         break
                         
                     except Exception as e:
@@ -153,10 +153,10 @@ class GeminiParser:
                                 continue
                             else:
                                 logger.error(f"Всі {max_keys} ключів вичерпали ліміти для {model_name}!")
-                                break # Переходимо до наступної моделі
+                                break                                 
                         else:
                             logger.error(f"Помилка моделі {model_name}: {str(e)}")
-                            break # Переходимо до наступної моделі
+                            break                                 
             
             return []
             

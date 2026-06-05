@@ -25,19 +25,19 @@ def smart_translate(uk_text, en_text, is_address=False):
     u = str(uk_text).strip() if uk_text else ''
     e = str(en_text).strip() if en_text else ''
 
-    # Якщо UK поле порожнє, але EN поле має кирилицю — переставляємо
+                                                                    
     if not u and e and has_cyrillic(e):
         u, e = e, ''
 
-    # Якщо нема що перекладати
+                              
     if not u or u == '-':
         return u, e
 
-    # EN вже правильний (не кирилиця)
+                                     
     if e and not has_cyrillic(e):
         return u, e
 
-    # Треба перекладати: EN порожній або має кирилицю
+                                                     
     text_to_translate = u
     if is_address:
         text_to_translate = u.replace('вул.', 'vul.').replace('просп.', 'prosp.').replace('пров.', 'prov.')
@@ -54,7 +54,7 @@ def smart_translate(uk_text, en_text, is_address=False):
             logger.warning(f"Translation attempt {attempt+1} failed: {ex}. Waiting {wait}s...")
             time.sleep(wait)
 
-    # Всі спроби провалились — повертаємо uk і порожній EN
+                                                          
     logger.error(f"Translation completely failed for: '{u}'")
     return u, ''
 
@@ -72,7 +72,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('🔄 Починаємо синхронізацію з Contentful...\n')
 
-        # 1. Підключаємось до Contentful
+                                        
         try:
             client = contentful.Client(
                 settings.CONTENTFUL_SPACE_ID,
@@ -83,7 +83,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f'❌ Помилка підключення до Contentful: {e}'))
             return
 
-        # 2. Забираємо всі записи типу 'project' з Contentful у всіх локалях
+                                                                            
         try:
             entries = client.entries({
                 'content_type': 'project',
@@ -101,29 +101,29 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('⚠️ Contentful порожній, нічого синхронізувати'))
             return
 
-        # 3. Очищаємо БД якщо вказано --clear
+                                             
         if options['clear']:
             deleted_count, _ = Gallery.objects.all().delete()
             self.stdout.write(self.style.WARNING(f'🗑️  Видалено {deleted_count} старих записів з БД'))
 
-        # 4. Синхронізуємо кожну галерею
+                                        
         created_count = 0
         updated_count = 0
         error_count = 0
 
         for item in entries:
             try:
-                # Отримуємо raw поля (json від Contentful) де локалі знаходяться в саб-об'єктах
+                                                                                               
                 fields = item.raw.get('fields', {})
                 contentful_id = item.sys.get('id', '')
                 
-                # Допоміжна функція для витягування локалізованих полів
+                                                                       
                 def _get_lang(field_dict, lang, default=''):
                     if isinstance(field_dict, dict):
                         return field_dict.get(lang, field_dict.get('en-US', default))
                     return field_dict if field_dict is not None else default
 
-                # Визначаємо slug
+                                 
                 slug_field = fields.get('slug', {})
                 slug = _get_lang(slug_field, 'en-US', '')
                 if not slug:
@@ -131,7 +131,7 @@ class Command(BaseCommand):
                     name_fallback = _get_lang(name_field, 'en-US', contentful_id)
                     slug = slugify(name_fallback, allow_unicode=True) or contentful_id
 
-                # Отримуємо URL картинки (через resolved fields від SDK)
+                                                                        
                 try:
                     resolved_fields = item.fields() or {}
                     cover_asset = resolved_fields.get('coverImage', resolved_fields.get('cover_image'))
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                     cover_asset = None
                 image_url = self._get_image_url(cover_asset)
 
-                # Обробка Rich Text (description) для обох локалей
+                                                                  
                 raw_description = fields.get('description', {})
                 def _get_rich_text_lang(rt, lang):
                     if isinstance(rt, dict):
@@ -157,14 +157,14 @@ class Command(BaseCommand):
                 social_links_val = _get_lang(social_links_raw, 'en-US', {})
                 social_links = social_links_val.get('links', []) if isinstance(social_links_val, dict) else []
 
-                # Обробка artists
+                                 
                 artists_data = fields.get('artistsList', fields.get('artists_list', {}))
                 artists_ua_raw = _get_lang(artists_data, 'uk', [])
                 artists_en_raw = _get_lang(artists_data, 'en-US', [])
                 artists_ua = '\n'.join(str(a) for a in artists_ua_raw) if isinstance(artists_ua_raw, list) else str(artists_ua_raw)
                 artists_en = '\n'.join(str(a) for a in artists_en_raw) if isinstance(artists_en_raw, list) else str(artists_en_raw)
 
-                # Отримуємо статус
+                                  
                 status_val = _get_lang(fields.get('status', {}), 'en-US', True)
                 status_bool = bool(status_val) if status_val is not None else True
 
@@ -260,7 +260,7 @@ class Command(BaseCommand):
             return None
         if isinstance(year_value, int):
             return year_value
-        # Шукаємо 4-значне число в рядку
+                                        
         import re
         match = re.search(r'\b(19|20)\d{2}\b', str(year_value))
         if match:

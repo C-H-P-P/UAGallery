@@ -93,15 +93,15 @@ class Command(BaseCommand):
                     if not primary_link:
                         continue
                         
-                    # Визначаємо тип
+                                    
                     source_type = 'website'
                     if 'instagram.com' in primary_link:
                         source_type = 'instagram'
                     elif 'facebook.com' in primary_link:
                         source_type = 'facebook'
                         
-                    # Шукаємо галерею в базі (за англійською або українською назвою)
-                    # Використовуємо icontains для неточного пошуку, оскільки назви в таблиці можуть трохи відрізнятись
+                                                                                    
+                                                                                                                       
                     gallery = None
                     if slug:
                         gallery = Gallery.objects.filter(slug=slug).first()

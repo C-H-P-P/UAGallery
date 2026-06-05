@@ -49,7 +49,7 @@ class GalleryListSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
             'social_links',
             'created_at',
             'updated_at',
-            # Залишаємо _ua/_en для повної сумісності
+                                                     
             'name_ua', 'name_en', 'city_ua', 'city_en', 
             'address_ua', 'address_en', 'short_description_ua', 'short_description_en'
         ]
@@ -86,7 +86,7 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
     def get_specialization(self, obj): return self.resolve_locale(obj, 'specialization')
     
     def get_exhibitions(self, obj):
-        # Повертаємо тільки активні виставки для цієї галереї
+                                                             
         exhibitions = obj.exhibitions.filter(is_active=True).order_by('-start_date')
         return ExhibitionSerializer(exhibitions, many=True).data
 
@@ -117,7 +117,7 @@ class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
             'exhibitions',
             'created_at',
             'updated_at',
-            # Backwards compat manual fields
+                                            
             'name_ua', 'name_en', 'city_ua', 'city_en',
             'address_ua', 'address_en', 'short_description_ua', 'short_description_en',
             'description_ua', 'description_en', 'founders_ua', 'founders_en',

@@ -2,7 +2,7 @@ import os
 import django
 import sys
 
-# Set up Django environment
+                           
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 django.setup()
 
@@ -13,13 +13,13 @@ def fix_urls():
     updated_count = 0
     
     for gallery in galleries:
-        # Check if monitoring_url is empty, None, or a placeholder like "-" or "https://-"
+                                                                                          
         is_empty = not gallery.monitoring_url or gallery.monitoring_url.strip() in ['-', 'https://-', '']
         
         if is_empty and gallery.social_links:
-            # We need to find an instagram or facebook link
+                                                           
             social_links = gallery.social_links
-            # Ensure it's a list (it should be, based on JSON parsing, but just in case)
+                                                                                        
             if isinstance(social_links, str):
                 import json
                 try:
@@ -30,7 +30,7 @@ def fix_urls():
             if not isinstance(social_links, list):
                 continue
                 
-            # Prefer instagram, then facebook
+                                             
             found_url = None
             found_type = ''
             
@@ -41,12 +41,12 @@ def fix_urls():
                 if 'instagram.com' in link_lower:
                     found_url = link
                     found_type = 'instagram'
-                    break  # Highest priority
+                    break                    
                 elif 'facebook.com' in link_lower and not found_url:
                     found_url = link
                     found_type = 'facebook'
                 elif not found_url and link.startswith('http'):
-                    # Fallback to ANY other link (like t.me)
+                                                            
                     found_url = link
                     if 't.me' in link_lower:
                         found_type = 'telegram'
@@ -60,14 +60,14 @@ def fix_urls():
                 print(f"Updated {gallery.slug}: {found_url} ({found_type})")
                 updated_count += 1
             elif gallery.website_url and gallery.website_url.strip() and gallery.website_url.strip() != '-':
-                # Fallback to website_url
+                                         
                 gallery.monitoring_url = gallery.website_url.strip()
                 gallery.source_type = 'website'
                 gallery.save(update_fields=['monitoring_url', 'source_type'])
                 print(f"Updated {gallery.slug} from website_url: {gallery.monitoring_url} (website)")
                 updated_count += 1
         elif is_empty and gallery.website_url and gallery.website_url.strip() and gallery.website_url.strip() != '-':
-            # If no social links at all, but has website
+                                                        
             gallery.monitoring_url = gallery.website_url.strip()
             gallery.source_type = 'website'
             gallery.save(update_fields=['monitoring_url', 'source_type'])

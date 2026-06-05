@@ -6,13 +6,13 @@ from django.contrib.auth.models import User
 def test_gallery_create():
     client = APIClient()
 
-    # створюємо юзера
+                     
     user = User.objects.create_user(
         username="testuser",
         password="testpass123"
     )
 
-    # логінимось
+                
     client.force_authenticate(user=user)
 
     data = {

@@ -89,7 +89,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         slug = self.kwargs.get('slug')
         gallery = get_object_or_404(Gallery, slug=slug)
         
-        # Перевірка: чи не залишав вже користувач відгук на цю галерею
+                                                                      
         if Review.objects.filter(user=self.request.user, gallery=gallery).exists():
             from rest_framework.exceptions import ValidationError
             raise ValidationError({"detail": "Ви вже залишили відгук для цієї галереї."})
@@ -109,7 +109,7 @@ def contentful_webhook(request):
     URL: /api/webhooks/contentful/
     Method: POST
     """
-    # Перевіряємо секретний ключ webhook (опціонально, для безпеки)
+                                                                   
     webhook_secret = getattr(settings, 'CONTENTFUL_WEBHOOK_SECRET', None)
     if webhook_secret:
         signature = request.headers.get('X-Contentful-Webhook-Signature', '')
@@ -123,11 +123,11 @@ def contentful_webhook(request):
     try:
         data = request.data
         
-        # Contentful надсилає дані в форматі Entry
+                                                  
         sys_info = data.get('sys', {})
         content_type = sys_info.get('contentType', {}).get('sys', {}).get('id', '')
         
-        # Обробляємо тільки 'project' (галереї)
+                                               
         if content_type != 'project':
             return Response(
                 {'message': f'Ignored content type: {content_type}'},
@@ -137,17 +137,17 @@ def contentful_webhook(request):
         fields = data.get('fields', {})
         contentful_id = sys_info.get('id', '')
         
-        # Визначаємо slug
+                         
         slug = fields.get('slug', {}).get('en-US', '') if isinstance(fields.get('slug'), dict) else fields.get('slug', '')
         if not slug:
             name_field = fields.get('name', {})
             name = name_field.get('en-US', '') if isinstance(name_field, dict) else str(name_field)
             slug = slugify(name, allow_unicode=True) or contentful_id
         
-        # Отримуємо URL картинки
+                                
         image_url = _get_image_url_from_webhook(fields.get('coverImage'))
         
-        # Обробка Rich Text (description)
+                                         
         raw_description = fields.get('description', {})
         def _get_rich_text_lang(rt, lang):
             if isinstance(rt, dict):
@@ -160,7 +160,7 @@ def contentful_webhook(request):
         desc_ua = _get_rich_text_lang(raw_description, 'uk')
         desc_en = _get_rich_text_lang(raw_description, 'en-US')
         
-        # Обробка social links
+                              
         social_links_raw = fields.get('socialLinks', {})
         if isinstance(social_links_raw, dict):
             social_links_raw = social_links_raw.get('en-US', {})
@@ -168,7 +168,7 @@ def contentful_webhook(request):
             social_links_raw = {}
         social_links = social_links_raw.get('links', []) if isinstance(social_links_raw, dict) else []
         
-        # Отримуємо значення полів для двох мов
+                                               
         def _get_lang(field, lang, default=''):
             if isinstance(field, dict):
                 return field.get(lang, field.get('en-US', default))
@@ -187,7 +187,7 @@ def contentful_webhook(request):
         curators_ua_raw = _get_lang(fields.get('curators'), 'uk', '')
         curators_en_raw = _get_lang(fields.get('curators'), 'en-US', '')
 
-        # Обробка artists
+                         
         artists_data = fields.get('artistsList', {})
         artists_ua_raw = _get_lang(artists_data, 'uk', [])
         artists_en_raw = _get_lang(artists_data, 'en-US', [])
@@ -202,7 +202,7 @@ def contentful_webhook(request):
         specialization_ua_raw = _get_lang(fields.get('specialization', {}), 'uk', '')
         specialization_en_raw = _get_lang(fields.get('specialization', {}), 'en-US', '')
 
-        # --- АВТОМАТИЧНИЙ ПЕРЕКЛАД ---
+                                       
         def has_cyrillic(text):
             return bool(re.search('[а-яА-ЯёЁіІїЇєЄґҐ]', str(text)))
 
@@ -248,7 +248,7 @@ def contentful_webhook(request):
         curators_ua, curators_en = smart_translate(curators_ua_raw, curators_en_raw)
         artists_ua, artists_en = smart_translate(artists_ua_raw, artists_en_raw)
         
-        # Моніторинг та AI
+                          
         monitoring_url = _get_localized_value(fields.get('monitoringUrl'), '')
         if monitoring_url:
             m = re.search(r'https?://[^\s\)>\]}",]+', str(monitoring_url))
@@ -258,7 +258,7 @@ def contentful_webhook(request):
             monitoring_url = monitoring_url.strip().strip(")").strip("]").strip("}").strip(",").strip(".").strip("`").strip()
         source_type = _get_localized_value(fields.get('sourceType'), '')
         
-        # Зберігання в базу
+                           
         gallery, created = Gallery.objects.update_or_create(
             slug=slug,
             defaults={
@@ -337,7 +337,7 @@ def run_csv_import_view(request):
         if not secret or not hmac.compare_digest(str(secret), str(expected_secret)):
             return HttpResponse("Unauthorized", status=401)
 
-        # Шукаємо файл
+                      
         base_dir = str(getattr(settings, 'BASE_DIR', '') or '')
         csv_path_1 = os.path.join(base_dir, 'galleries.csv')
         csv_path_2 = os.path.join(os.path.dirname(base_dir), 'galleries.csv')
@@ -351,10 +351,10 @@ def run_csv_import_view(request):
         if not actual_path:
             return HttpResponse(f"Помилка: Файл galleries.csv не знайдено ні в {csv_path_1}, ні в {csv_path_2}", status=404)
             
-        # Робимо імпорт
+                       
         out = StringIO()
         
-        # Передаємо stdout напряму в call_command
+                                                 
         call_command('import_urls', actual_path, stdout=out, stderr=out, quiet=True)
         
         result = out.getvalue()
@@ -435,7 +435,7 @@ def run_ai_detector_view(request):
 def _get_localized_value(field_value, default=''):
     """Отримує значення з локалізованого поля Contentful"""
     if isinstance(field_value, dict):
-        # Спробуємо отримати en-US, якщо немає — беремо перше доступне
+                                                                      
         if 'en-US' in field_value:
             return field_value['en-US']
         return field_value.get(list(field_value.keys())[0], default) if field_value else default
@@ -449,7 +449,7 @@ def _get_image_url_from_webhook(asset_field):
     
     try:
         if isinstance(asset_field, dict):
-            # Локалізоване поле
+                               
             asset = asset_field.get('en-US', asset_field)
             if isinstance(asset, dict):
                 file_data = asset.get('fields', {}).get('file', {})

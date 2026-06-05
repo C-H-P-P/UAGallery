@@ -20,7 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Запуск AI-детектора виставок...'))
         
-        # Перевірка наявності ключа
+                                   
         gemini_key = os.environ.get('GEMINI_API_KEY')
         if not gemini_key:
             self.stdout.write(self.style.WARNING(
@@ -48,7 +48,7 @@ class Command(BaseCommand):
             url = gallery.monitoring_url
             self.stdout.write(f'Обробка: {gallery.name_ua} ({url})')
             
-            # 1. Скрапінг тексту
+                                
             debug = bool(options.get('debug'))
             include_social = bool(options.get('include_social'))
             if not include_social and gallery.source_type in ('instagram', 'facebook'):
@@ -73,24 +73,24 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"  Не вдалося отримати текст з {url}"))
                 continue
                 
-            # 2. Перевірка хешу (чи є зміни з минулого разу)
+                                                            
             current_hash = WebScraper.get_text_hash(text)
             if current_hash == gallery.last_scraped_hash:
                 self.stdout.write(f"  Змін на сторінці не знайдено (хеш співпадає). Пропускаємо.")
                 continue
                 
-            # 3. Відправка в AI
+                               
             self.stdout.write("  Виявлено зміни! Відправка тексту до Gemini AI...")
             exhibitions_data = parser.extract_exhibitions(text, gallery.name_ua)
             
             if not exhibitions_data:
                 self.stdout.write("  Gemini не знайшов нових виставок у тексті.")
-                # Все одно оновлюємо хеш, щоб не відправляти цей самий текст завтра
+                                                                                   
                 gallery.last_scraped_hash = current_hash
                 gallery.save(update_fields=['last_scraped_hash'])
                 continue
                 
-            # 4. Збереження виставок у базу даних
+                                                 
             self.stdout.write(self.style.SUCCESS(f"  Знайдено виставок: {len(exhibitions_data)}"))
             
             for item in exhibitions_data:
@@ -98,16 +98,16 @@ class Command(BaseCommand):
                 start_date_str = item.get('start_date')
                 end_date_str = item.get('end_date')
                 
-                # Конвертація дат (захист від невалідних форматів AI)
+                                                                     
                 start_date = None
                 end_date = None
                 try:
                     if start_date_str: start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
                     if end_date_str: end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
                 except ValueError:
-                    pass # Якщо AI повернув криву дату, залишаємо None
+                    pass                                              
                 
-                # Створюємо або оновлюємо виставку
+                                                  
                 exhibition, created = Exhibition.objects.update_or_create(
                     gallery=gallery,
                     title=title,
@@ -116,14 +116,14 @@ class Command(BaseCommand):
                         'start_date': start_date,
                         'end_date': end_date,
                         'artists': item.get('artists', []),
-                        'source_text': text[:5000], # Зберігаємо шматок тексту для дебагу
+                        'source_text': text[:5000],                                      
                         'is_active': True
                     }
                 )
                 action = "Створено" if created else "Оновлено"
                 self.stdout.write(f"    - {action}: {title}")
                 
-            # Оновлюємо хеш після успішної обробки
+                                                  
             gallery.last_scraped_hash = current_hash
             gallery.save(update_fields=['last_scraped_hash'])
             

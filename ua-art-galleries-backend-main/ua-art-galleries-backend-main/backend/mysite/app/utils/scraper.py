@@ -46,7 +46,7 @@ class WebScraper:
                 logger.warning(f"Прямий скрапінг соцмереж ({url}) обмежений. Потрібен API-сервіс або проксі.")
                 return ("", "social scraping blocked") if return_error else ""
 
-            # Якщо увімкнено Jina і це соцмережа - йдемо напряму через Jina
+                                                                           
             if is_social and proxy_template:
                 proxied_url = proxy_template.format(url=url)
                 response = requests.get(proxied_url, timeout=25)
@@ -91,21 +91,21 @@ class WebScraper:
 
             soup = BeautifulSoup(response.content, "html.parser")
             
-            # Видаляємо скрипти, стилі, навігацію та футери
+                                                           
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
                 
-            # Отримуємо текст
+                             
             text = soup.get_text(separator=' ', strip=True)
             
-            # Якщо текст занадто короткий (ймовірно, порожній JS-шаблон), пробуємо Jina
+                                                                                       
             if len(text) < 150 and proxy_template:
                 proxied_url = proxy_template.format(url=url)
                 resp = requests.get(proxied_url, timeout=25)
                 if resp.status_code == 200:
                     text = (resp.text or "").strip()
             
-            # Обмежуємо розмір тексту
+                                     
             text = text[:15000]
             return (text, None) if return_error else text
             

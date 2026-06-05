@@ -13,26 +13,26 @@ def health_check(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # --- GALLERY API (дані з Neon PostgreSQL) ---
+                                                  
     path('api/galleries/', GalleryListView.as_view(), name='gallery-list'),
     path('api/galleries/<slug:slug>/', GalleryDetailView.as_view(), name='gallery-detail'),
     path('api/galleries/<slug:slug>/reviews/', ReviewListCreateView.as_view(), name='gallery-reviews'),
 
-    # --- FAVORITES API ---
+                           
     path('api/favorites/', FavoriteListView.as_view(), name='favorites-list'),
     path('api/favorites/toggle/', FavoriteToggleView.as_view(), name='favorites-toggle'),
 
-    # --- CONTENTFUL WEBHOOK (автоматична синхронізація) ---
+                                                            
     path('api/webhooks/contentful/', contentful_webhook, name='contentful-webhook'),
 
-    # --- HEALTH CHECK (для Render) ---
+                                       
     path('api/health/', health_check, name='health-check'),
 
-    # --- SYSTEM & AUTOMATION ---
+                                 
     path('api/system/import-csv/', run_csv_import_view, name='system-import-csv'),
     path('api/system/run-detector/', run_ai_detector_view, name='system-run-detector'),
 
-    # --- AUTH ---
+                  
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),
     path('api/auth/register/', MinimalRegisterView.as_view(), name='register'),
     path('api/auth/user/', UserDetailView.as_view(), name='user_detail'),

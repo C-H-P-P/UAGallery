@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from django.contrib.auth import authenticate, get_user_model
-from django.utils.decorators import method_decorator  # <--- Додали
-from django.views.decorators.csrf import csrf_exempt  # <--- Додали
+from django.utils.decorators import method_decorator               
+from django.views.decorators.csrf import csrf_exempt               
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ("id", "username", "email", "first_name", "last_name")
 
 
-# 👇 МАГІЯ ТУТ: Вимикаємо CSRF для логіна
+                                        
 @method_decorator(csrf_exempt, name='dispatch')
 class MinimalLoginView(APIView):
     permission_classes = [AllowAny]
@@ -44,7 +44,7 @@ class MinimalLoginView(APIView):
         return Response({"key": token}, status=status.HTTP_200_OK)
 
 
-# 👇 МАГІЯ ТУТ: Вимикаємо CSRF для реєстрації
+                                            
 @method_decorator(csrf_exempt, name='dispatch')
 class MinimalRegisterView(APIView):
     permission_classes = [AllowAny]
