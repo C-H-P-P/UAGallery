@@ -96,8 +96,7 @@ class MinimalRegisterView(APIView):
 
         from django.contrib.auth.tokens import default_token_generator
         from django.utils.http import urlsafe_base64_encode
-        from django.utils.encoding import force_bytes
-        from django.core.mail import send_mail
+        import requests
         import os
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -106,13 +105,25 @@ class MinimalRegisterView(APIView):
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
         verify_link = f"{frontend_url}/verify-email?uid={uid}&token={token}"
         
-        send_mail(
-            subject="Підтвердження реєстрації | UA Gallery",
-            message=f"Привіт, {user.first_name or username}!\n\nБудь ласка, підтвердіть вашу електронну пошту, перейшовши за посиланням:\n{verify_link}\n\nЯкщо ви не реєструвалися на нашому сайті, просто проігноруйте цей лист.",
-            from_email="UA Gallery <uadbgallery@gmail.com>",
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        brevo_api_key = os.environ.get("BREVO_API_KEY", "")
+        if brevo_api_key:
+            payload = {
+                "sender": {"name": "UA Gallery", "email": "uadbgallery@gmail.com"},
+                "to": [{"email": user.email}],
+                "subject": "Підтвердження реєстрації | UA Gallery",
+                "htmlContent": f"Привіт, {user.first_name or username}!<br><br>Будь ласка, підтвердіть вашу електронну пошту, перейшовши за посиланням:<br><a href='{verify_link}'>{verify_link}</a><br><br>Якщо ви не реєструвалися на нашому сайті, просто проігноруйте цей лист."
+            }
+            try:
+                requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    json=payload,
+                    headers={"api-key": brevo_api_key, "Content-Type": "application/json"},
+                    timeout=10
+                )
+            except Exception as e:
+                print(f"Brevo API error: {e}")
+        else:
+            print("WARNING: BREVO_API_KEY not set. Email not sent.")
 
         return Response({"detail": "Registration successful. Please check your email to verify your account."}, status=status.HTTP_201_CREATED)
 
