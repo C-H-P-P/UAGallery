@@ -96,3 +96,69 @@ class UserDetailView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from django.conf import settings
+import os
+import uuid
+import jwt
+from django.utils import timezone
+from datetime import timedelta
+
+@method_decorator(csrf_exempt, name='dispatch')
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        google_id_token = request.data.get("google_id_token")
+        if not google_id_token:
+            return Response({"detail": "google_id_token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        client_id = os.environ.get("GOOGLE_CLIENT_ID") or getattr(settings, "GOOGLE_CLIENT_ID", None)
+
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                google_id_token,
+                google_requests.Request(),
+                client_id
+            )
+            email = idinfo.get("email")
+            if not email:
+                return Response({"detail": "Email not found in token"}, status=status.HTTP_400_BAD_REQUEST)
+
+            User = get_user_model()
+            user = User.objects.filter(email=email).first()
+
+            if not user:
+                base_username = email.split('@')[0]
+                username = base_username
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{uuid.uuid4().hex[:6]}"
+                
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=idinfo.get("given_name", ""),
+                    last_name=idinfo.get("family_name", "")
+                )
+                user.set_unusable_password()
+                user.save()
+
+            access_lifetime = getattr(settings, "MINIMAL_JWT_ACCESS_LIFETIME", timedelta(minutes=60))
+            access_exp = int((timezone.now() + access_lifetime).timestamp())
+            access_token = jwt.encode({"userId": user.pk, "exp": access_exp, "type": "access"}, settings.SECRET_KEY, algorithm="HS256")
+
+            refresh_exp = int((timezone.now() + timedelta(days=7)).timestamp())
+            refresh_token = jwt.encode({"userId": user.pk, "exp": refresh_exp, "type": "refresh"}, settings.SECRET_KEY, algorithm="HS256")
+
+            return Response({
+                "access": access_token,
+                "refresh": refresh_token,
+                "user": UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({"detail": f"Invalid Google token: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)

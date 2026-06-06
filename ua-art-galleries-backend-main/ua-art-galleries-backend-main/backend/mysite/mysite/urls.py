@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
 
 from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView, run_csv_import_view, run_ai_detector_view
-from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView
+from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView, GoogleLoginView
 
 def health_check(request):
     return JsonResponse({'status': 'ok'})
@@ -35,6 +35,7 @@ urlpatterns = [
                   
     path('api/auth/login/', MinimalLoginView.as_view(), name='login'),
     path('api/auth/register/', MinimalRegisterView.as_view(), name='register'),
+    path('api/auth/google/', GoogleLoginView.as_view(), name='google_login'),
     path('api/auth/user/', UserDetailView.as_view(), name='user_detail'),
 ]
 

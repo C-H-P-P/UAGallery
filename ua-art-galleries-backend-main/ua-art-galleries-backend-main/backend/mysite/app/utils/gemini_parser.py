@@ -97,8 +97,8 @@ class GeminiParser:
 1. Знайди всі анонси виставок або мистецьких подій.
 2. Для кожної виставки визнач:
    - title (Назва виставки, рядок)
-   - start_date (Дата початку у форматі YYYY-MM-DD, або null якщо не знайдено)
-   - end_date (Дата завершення у форматі YYYY-MM-DD, або null якщо не знайдено)
+   - start_date (Дата початку СУВОРО у форматі YYYY-MM-DD, наприклад "2024-12-01". Якщо дата невідома, або вказано лише місяць без числа - повертай null)
+   - end_date (Дата завершення СУВОРО у форматі YYYY-MM-DD, наприклад "2024-12-31". Інакше - null)
    - description (Короткий опис, 2-3 речення)
    - artists (Масив імен художників, які беруть участь)
 3. Якщо виставок не знайдено, поверни порожній масив [].
@@ -110,9 +110,6 @@ class GeminiParser:
 ---
 """
         try:
-            prompt = self.base_prompt.replace("{gallery_name}", gallery_name).replace("{text}", text[:12000])
-            
-                                                               
             models_to_try = [
                 'gemini-2.0-flash',
                 'gemini-1.5-flash',
@@ -120,7 +117,6 @@ class GeminiParser:
             ]
             
             for model_name in models_to_try:
-                                                                             
                 keys_tried = 0
                 max_keys = len(self.api_keys)
                 
@@ -130,7 +126,7 @@ class GeminiParser:
                         response = self.client.models.generate_content(
                             model=model_name,
                             contents=prompt,
-                            config=self.generation_config,
+                            config=types.GenerateContentConfig(response_mime_type="application/json"),
                         )
                         
                         exhibitions_data = self._parse_json_payload(getattr(response, "text", ""))
