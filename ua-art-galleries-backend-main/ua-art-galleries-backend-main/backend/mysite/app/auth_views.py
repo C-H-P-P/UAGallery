@@ -106,7 +106,7 @@ class MinimalRegisterView(APIView):
         frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
         verify_link = f"{frontend_url}/verify-email?uid={uid}&token={token}"
         
-        brevo_api_key = os.environ.get("BREVO_API_KEY", "")
+        brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
         if brevo_api_key:
             payload = {
                 "sender": {"name": "UA Gallery", "email": "uadbgallery@gmail.com"},
@@ -115,16 +115,21 @@ class MinimalRegisterView(APIView):
                 "htmlContent": f"Привіт, {user.first_name or username}!<br><br>Будь ласка, підтвердіть вашу електронну пошту, перейшовши за посиланням:<br><a href='{verify_link}'>{verify_link}</a><br><br>Якщо ви не реєструвалися на нашому сайті, просто проігноруйте цей лист."
             }
             try:
-                requests.post(
+                res = requests.post(
                     "https://api.brevo.com/v3/smtp/email",
                     json=payload,
                     headers={"api-key": brevo_api_key, "Content-Type": "application/json"},
                     timeout=10
                 )
+                if res.status_code >= 400:
+                    user.delete()
+                    return Response({"detail": f"Помилка відправки листа (Brevo): {res.text}"}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                print(f"Brevo API error: {e}")
+                user.delete()
+                return Response({"detail": f"Помилка сервера при відправці: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            print("WARNING: BREVO_API_KEY not set. Email not sent.")
+            user.delete()
+            return Response({"detail": "BREVO_API_KEY не знайдено на сервері!"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"detail": "Registration successful. Please check your email to verify your account."}, status=status.HTTP_201_CREATED)
 
