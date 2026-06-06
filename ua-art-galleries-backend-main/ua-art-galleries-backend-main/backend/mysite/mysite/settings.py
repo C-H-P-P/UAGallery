@@ -194,6 +194,14 @@ CONTENTFUL_SPACE_ID = env('CONTENTFUL_SPACE_ID', default='')
 CONTENTFUL_ACCESS_TOKEN = env('CONTENTFUL_ACCESS_TOKEN', default='')
 SYSTEM_ENDPOINT_SECRET = env('SYSTEM_ENDPOINT_SECRET', default='')
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST', default='smtp-relay.brevo.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = 'UA Gallery <uadbgallery@gmail.com>'
+
 
 if 'pytest' in sys.argv[0]:
     DATABASES = {

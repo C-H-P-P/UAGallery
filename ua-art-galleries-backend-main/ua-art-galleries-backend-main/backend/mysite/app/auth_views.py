@@ -91,9 +91,30 @@ class MinimalRegisterView(APIView):
             first_name=first_name,
             last_name=last_name,
         )
+        user.is_active = False
+        user.save()
 
-        token = build_minimal_jwt(user)
-        return Response({"key": token}, status=status.HTTP_201_CREATED)
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        from django.core.mail import send_mail
+        import os
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+        verify_link = f"{frontend_url}/verify-email?uid={uid}&token={token}"
+        
+        send_mail(
+            subject="Підтвердження реєстрації | UA Gallery",
+            message=f"Привіт, {user.first_name or username}!\n\nБудь ласка, підтвердіть вашу електронну пошту, перейшовши за посиланням:\n{verify_link}\n\nЯкщо ви не реєструвалися на нашому сайті, просто проігноруйте цей лист.",
+            from_email="UA Gallery <uadbgallery@gmail.com>",
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+        return Response({"detail": "Registration successful. Please check your email to verify your account."}, status=status.HTTP_201_CREATED)
 
 
 class UserDetailView(APIView):
@@ -168,3 +189,32 @@ class GoogleLoginView(APIView):
 
         except ValueError as e:
             return Response({"detail": f"Invalid Google token: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+from django.utils.http import urlsafe_base64_decode
+
+@method_decorator(csrf_exempt, name='dispatch')
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        uidb64 = request.data.get("uid")
+        token = request.data.get("token")
+
+        if not uidb64 or not token:
+            return Response({"detail": "uid and token are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            User = get_user_model()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        from django.contrib.auth.tokens import default_token_generator
+        if user is not None and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({"detail": "Email successfully verified. You can now login."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"detail": "Invalid or expired verification token"}, status=status.HTTP_400_BAD_REQUEST)
