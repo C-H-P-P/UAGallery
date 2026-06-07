@@ -121,8 +121,10 @@ class Command(BaseCommand):
             if listings_text:
                 url = index_url
                 self.stdout.write(f'   🔍 Шукаємо виставки на новій сторінці...')
-                extracted = gemini.extract_exhibition_links(listings_text, url)
-                exhibition_links = extracted.get("exhibition_pages", []) if isinstance(extracted, dict) else extracted
+                extracted_new = gemini.extract_exhibition_links(listings_text, url)
+                new_links = extracted_new.get("exhibition_pages", []) if isinstance(extracted_new, dict) else extracted_new
+                exhibition_links.extend(new_links)
+                exhibition_links = list(set(exhibition_links))
 
         if exhibition_links:
             self.stdout.write(f'   📋 Знайдено підсторінок: {len(exhibition_links)}')
