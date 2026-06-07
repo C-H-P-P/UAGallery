@@ -212,6 +212,10 @@ class Exhibition(models.Model):
         help_text='Список художників у форматі масиву рядків'
     )
     is_active = models.BooleanField(default=True, verbose_name="Активна?")
+    image_url = models.URLField(
+        blank=True, default="", verbose_name="URL головного фото",
+        help_text="Пряме посилання на зображення постера або роботи з виставки"
+    )
     source_url = models.URLField(
         blank=True, default="", verbose_name="URL сторінки виставки",
         help_text="Пряме посилання на підсторінку виставки (якщо є)"

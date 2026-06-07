@@ -101,8 +101,29 @@ class Command(BaseCommand):
         if not force and listings_hash == gallery.last_scraped_hash:
             self.stdout.write('   ✓ Головна сторінка не змінилась. Пропускаємо.')
             return 0, 0
+            
         self.stdout.write('   🔍 Шукаємо посилання на виставки...')
-        exhibition_links = gemini.extract_exhibition_links(listings_text, url)
+        extracted = gemini.extract_exhibition_links(listings_text, url)
+        
+        if isinstance(extracted, list):
+            exhibition_links = extracted
+            index_pages = []
+        else:
+            exhibition_links = extracted.get("exhibition_pages", [])
+            index_pages = extracted.get("index_pages", [])
+            
+        if index_pages and url == gallery.website_url:
+            index_url = index_pages[0]
+            self.stdout.write(f'   🔀 Знайдено загальну сторінку виставок: {index_url}')
+            gallery.monitoring_url = index_url
+            gallery.save(update_fields=['monitoring_url'])
+            listings_text = self._fetch_text(scraper, index_url, debug)
+            if listings_text:
+                url = index_url
+                self.stdout.write(f'   🔍 Шукаємо виставки на новій сторінці...')
+                extracted = gemini.extract_exhibition_links(listings_text, url)
+                exhibition_links = extracted.get("exhibition_pages", []) if isinstance(extracted, dict) else extracted
+
         if exhibition_links:
             self.stdout.write(f'   📋 Знайдено підсторінок: {len(exhibition_links)}')
             created, updated = self._process_exhibition_pages(
@@ -117,6 +138,7 @@ class Command(BaseCommand):
             )
             created_total += created
             updated_total += updated
+            
         gallery.last_scraped_hash = listings_hash
         gallery.save(update_fields=['last_scraped_hash'])
         return created_total, updated_total
@@ -213,6 +235,7 @@ class Command(BaseCommand):
                     'description': item.get('description', ''),
                     'start_date': start_date,
                     'end_date': end_date,
+                    'image_url': item.get('image_url', ''),
                     'artists': item.get('artists', []),
                     'source_url': source_url,
                     'source_text': text[:5000],

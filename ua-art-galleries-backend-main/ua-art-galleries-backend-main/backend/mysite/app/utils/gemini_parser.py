@@ -23,7 +23,7 @@ class GeminiParser:
         candidates = []
         if self.model:
             candidates.append(self.model.strip())
-        for m in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
+        for m in ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash-002"]:
             if m not in candidates:
                 candidates.append(m)
         return candidates
@@ -86,44 +86,49 @@ class GeminiParser:
         if isinstance(payload, list):
             return payload
         if isinstance(payload, dict):
+            if "index_pages" in payload or "exhibition_pages" in payload:
+                return payload
             for key in ("exhibitions", "urls", "links", "data"):
                 if key in payload and isinstance(payload[key], list):
                     return payload[key]
         return []
-    def extract_exhibition_links(self, page_text: str, base_url: str) -> list[str]:
+    def extract_exhibition_links(self, page_text: str, base_url: str) -> dict:
         if not self.client:
-            logger.error("GEMINI_API_KEY не знайдено.")
-            return []
+            logger.error('GEMINI_API_KEY не знайдено.')
+            return {'index_pages': [], 'exhibition_pages': []}
         if len(page_text) < 50:
-            return []
+            return {'index_pages': [], 'exhibition_pages': []}
         prompt = f"""
-Ти — парсер веб-сторінок арт-галерей.
-Твоє завдання: знайти у тексті нижче всі посилання (URL), що ведуть на ОКРЕМІ сторінки виставок.
-Правила:
-1. Шукай посилання з патернами: /exhibition/, /vystavka/, /event/, /shows/, /expo/ тощо.
-2. Повертай лише посилання на КОНКРЕТНІ виставки, НЕ на розділи (не /exhibitions/, не /events/).
-3. Якщо посилання відносне (наприклад /exhibition/vin) — перетвори в абсолютне, використовуючи базовий URL: {base_url}
-4. Якщо на сторінці вже є ПОВНІ описи виставок (назва + дата + опис) без потреби переходити на підсторінки — поверни порожній масив [].
-5. Якщо посилань на підсторінки не знайдено — поверни порожній масив [].
-6. ВІДПОВІДЬ: ТІЛЬКИ валідний JSON масив рядків. Без пояснень, без тегів.
-Приклад правильної відповіді:
-["https://gallery.com/exhibition/spring-show", "https://gallery.com/exhibition/art-2024"]
-Базовий URL галереї: {base_url}
-Текст сторінки:
----
-{page_text[:8000]}
----
-"""
+        Ти — веб-парсер арт-галерей.
+        Твоє завдання: знайти у тексті всі потрібні посилання.
+        Правила:
+        1. Знайди посилання на ЗАГАЛЬНІ розділи виставок (наприклад, 'Виставки', 'Exhibitions', 'Past Shows', 'Архів', 'Current'). Поверни 1-2 найважливіших з них у масиві 'index_pages'.
+        2. Також знайди всі прямі посилання на КОНКРЕТНІ окремі виставки і поверни їх у масиві 'exhibition_pages'.
+        3. Усі посилання повинні бути абсолютними (починатись з http). Якщо посилання відносне — додай базовий URL: {base_url}
+        4. ВІДПОВІДЬ: ТІЛЬКИ валідний JSON. Без тексту, без Markdown.
+        Приклад:
+        {{
+            "index_pages": ["https://gallery.com/exhibitions"],
+            "exhibition_pages": ["https://gallery.com/exhibition/spring-show"]
+        }}
+        Текст сторінки:
+        ---
+        {page_text[:10000]}
+        ---
+        """
         raw = self._call_gemini(prompt)
         if not raw:
-            return []
+            return {'index_pages': [], 'exhibition_pages': []}
         result = self._parse_list(raw)
-        urls = []
-        for item in result:
-            if isinstance(item, str) and item.startswith("http"):
-                urls.append(item.strip())
-        logger.info(f"extract_exhibition_links: знайдено {len(urls)} посилань для {base_url}")
-        return urls
+        
+        if isinstance(result, dict):
+            return {
+                'index_pages': [u for u in result.get('index_pages', []) if isinstance(u, str) and u.startswith('http')],
+                'exhibition_pages': [u for u in result.get('exhibition_pages', []) if isinstance(u, str) and u.startswith('http')]
+            }
+        elif isinstance(result, list):
+            return {'index_pages': [], 'exhibition_pages': [u for u in result if isinstance(u, str) and u.startswith('http')]}
+        return {'index_pages': [], 'exhibition_pages': []}
     def extract_exhibitions(self, text: str, gallery_name: str) -> list[dict]:
         if not self.client:
             logger.error("GEMINI_API_KEY не знайдено. Парсинг неможливий.")
@@ -137,11 +142,12 @@ class GeminiParser:
 Правила:
 1. Знайди всі анонси виставок або мистецьких подій.
 2. Для кожної виставки визнач:
-   - title       (Назва виставки, рядок)
-   - start_date  (Дата початку СУВОРО у форматі YYYY-MM-DD. Якщо невідома — null)
-   - end_date    (Дата завершення СУВОРО у форматі YYYY-MM-DD. Якщо невідома — null)
-   - description (Короткий опис, 2-3 речення)
-   - artists     (Масив імен художників)
+   - "title": "Назва виставки" (рядок)
+   - "start_date": "YYYY-MM-DD" (якщо є тільки день і місяць, використовуй поточний рік. Якщо дати взагалі немає - null)
+   - "end_date": "YYYY-MM-DD" (якщо дати немає - null)
+   - "image_url": "URL" (пряме абсолютне посилання на головне фото виставки/роботи. Шукай у розмітці ![alt](url) або <img src="url">. Якщо немає - null)
+   - "description": "Короткий опис" (2-3 речення)
+   - "artists": ["Ім'я Художника 1", "Ім'я Художника 2"]
 3. Якщо виставок не знайдено — поверни порожній масив [].
 4. ВІДПОВІДЬ: ВИКЛЮЧНО валідний JSON масив об'єктів. БЕЗ тегів та іншого тексту.
 Текст сторінки:
