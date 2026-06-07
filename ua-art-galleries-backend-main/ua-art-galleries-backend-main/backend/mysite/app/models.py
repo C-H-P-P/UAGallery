@@ -58,6 +58,7 @@ class Gallery(models.Model):
         blank=True, default="", verbose_name="URL для моніторингу",
         help_text="Посилання на головну сторінку сайту, Instagram або Facebook для парсингу подій"
     )
+    contentful_id = models.CharField(max_length=255, blank=True, default="", null=True)
     source_type = models.CharField(
         max_length=50, blank=True, default="website", verbose_name="Тип джерела",
         help_text="website | instagram | facebook | telegram"
