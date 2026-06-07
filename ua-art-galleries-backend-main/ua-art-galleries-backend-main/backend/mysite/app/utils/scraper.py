@@ -72,7 +72,7 @@ class WebScraper:
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
             text = soup.get_text(separator=' ', strip=True)
-            if len(text) < 150 and proxy_template:
+            if len(text) < 500 and proxy_template:
                 proxied_url = proxy_template.format(url=url)
                 resp = requests.get(proxied_url, timeout=25)
                 if resp.status_code == 200:

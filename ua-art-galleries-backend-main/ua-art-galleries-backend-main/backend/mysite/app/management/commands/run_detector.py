@@ -21,9 +21,9 @@ class Command(BaseCommand):
         parser.add_argument('--force', action='store_true',
                             help='Ігнорувати хеші — переобробити всі сторінки')
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('═' * 60))
+        self.stdout.write(self.style.SUCCESS('=' * 60))
         self.stdout.write(self.style.SUCCESS('  Запуск AI-детектора виставок'))
-        self.stdout.write(self.style.SUCCESS('═' * 60))
+        self.stdout.write(self.style.SUCCESS('=' * 60))
         if not os.environ.get('GEMINI_API_KEY'):
             self.stdout.write(self.style.ERROR(
                 'GEMINI_API_KEY не знайдено. AI парсинг неможливий.'
@@ -46,7 +46,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Знайдено галерей для моніторингу: {count}\n')
         stats = {'processed': 0, 'skipped': 0, 'exhibitions_created': 0, 'exhibitions_updated': 0, 'errors': 0}
         for gallery in galleries_qs:
-            self.stdout.write(f'\n{"─" * 50}')
+            self.stdout.write(f'\n{"-" * 50}')
             self.stdout.write(f'📍 {gallery.name_ua}')
             self.stdout.write(f'   URL: {gallery.monitoring_url}')
             self.stdout.write(f'   Тип: {gallery.source_type or "website"}')
@@ -64,7 +64,7 @@ class Command(BaseCommand):
                 if debug:
                     import traceback
                     self.stdout.write(traceback.format_exc())
-        self.stdout.write(f'\n{"═" * 60}')
+        self.stdout.write(f'\n{"=" * 60}')
         self.stdout.write(self.style.SUCCESS('  Сканування завершено!'))
         self.stdout.write(f'  Оброблено галерей:    {stats["processed"]}')
         self.stdout.write(f'  Пропущено:            {stats["skipped"]}')
@@ -72,7 +72,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  Виставок оновлено:    {stats["exhibitions_updated"]}')
         if stats['errors']:
             self.stdout.write(self.style.ERROR(f'  Помилок:              {stats["errors"]}'))
-        self.stdout.write('═' * 60)
+        self.stdout.write('=' * 60)
     def _process_gallery(self, gallery, gemini: GeminiParser,
                          debug=False, include_social=False, force=False):
         source_type = (gallery.source_type or "website").lower().strip()

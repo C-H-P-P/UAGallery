@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Gallery, Review, Exhibition
+from .models import Gallery, Review, Exhibition, ExhibitionPage
 
 @admin.register(Exhibition)
 class ExhibitionAdmin(admin.ModelAdmin):
@@ -7,6 +7,13 @@ class ExhibitionAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'start_date', 'gallery')
     search_fields = ('title', 'gallery__name_ua', 'description', 'artists')
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ExhibitionPage)
+class ExhibitionPageAdmin(admin.ModelAdmin):
+    list_display = ('gallery', 'url', 'last_seen')
+    search_fields = ('url', 'gallery__name_ua')
+    readonly_fields = ('last_hash', 'last_seen')
 
 
 @admin.register(Review)
@@ -47,6 +54,12 @@ class GalleryAdmin(admin.ModelAdmin):
         }),
         ('Додатково', {
             'fields': ('founding_year', 'social_links')
+        }),
+        ('Скрапінг та Автоматизація', {
+            'fields': (
+                'monitoring_url', 'source_type', 'needs_js', 
+                'instagram_username', 'last_scraped_hash'
+            )
         }),
         ('Системне', {
             'fields': ('created_at', 'updated_at'),
