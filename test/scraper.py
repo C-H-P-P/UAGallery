@@ -71,18 +71,23 @@ class WebScraper:
             soup = BeautifulSoup(response.content, "html.parser")
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
-            
-            # Зберігаємо картинки для парсера
-            for img in soup.find_all('img'):
-                src = img.get('src', '').strip()
-                alt = img.get('alt', '').strip()
-                if src and not src.startswith('data:'):
-                    if not src.startswith(('http://', 'https://')):
-                        src = urljoin(url, src)
-                    img.replace_with(f" ![{alt}]({src}) ")
+
+            # Зберігаємо URL картинок як маркери [IMAGE:url] перед get_text()
+            # щоб Gemini міг їх знайти в тексті
+            parsed_base = urlparse(url)
+            base_domain = f"{parsed_base.scheme}://{parsed_base.netloc}"
+            image_markers = []
+            for img in soup.find_all('img', src=True):
+                src = img['src'].strip()
+                if not src or src.startswith('data:'):
+                    continue
+                if not src.startswith('http'):
+                    src = base_domain + src if src.startswith('/') else base_domain + '/' + src
+                image_markers.append(f"[IMAGE:{src}]")
+                img.replace_with(f"[IMAGE:{src}]")
 
             text = soup.get_text(separator=' ', strip=True)
-            if len(text) < 1500 and proxy_template:
+            if len(text) < 500 and proxy_template:
                 proxied_url = proxy_template.format(url=url)
                 resp = requests.get(proxied_url, timeout=25)
                 if resp.status_code == 200:

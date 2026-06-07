@@ -59,7 +59,7 @@ class ExhibitionSerializer(serializers.ModelSerializer):
     """Серіалізатор для виставок"""
     class Meta:
         model = Exhibition
-        fields = ['id', 'title', 'description', 'start_date', 'end_date', 'source_url', 'is_active', 'artists']
+        fields = ['id', 'title', 'description', 'start_date', 'end_date', 'source_url', 'image_url', 'is_active', 'artists']
 
 
 class GalleryDetailSerializer(DynamicLocaleMixin, serializers.ModelSerializer):
