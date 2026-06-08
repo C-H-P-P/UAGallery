@@ -232,6 +232,14 @@ class VerifyEmailView(APIView):
         if user is not None and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return Response({"detail": "Email successfully verified. You can now login."}, status=status.HTTP_200_OK)
+
+            from mysite.authentication import build_minimal_jwt
+            jwt_token = build_minimal_jwt(user)
+
+            return Response({
+                "detail": "Email successfully verified. You are now logged in.",
+                "key": jwt_token,
+                "user": UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Invalid or expired verification token"}, status=status.HTTP_400_BAD_REQUEST)
