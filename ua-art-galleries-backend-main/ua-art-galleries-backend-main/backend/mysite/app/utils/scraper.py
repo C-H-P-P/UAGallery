@@ -82,7 +82,9 @@ class WebScraper:
                     img.replace_with(f" ![{alt}]({src}) ")
 
             text = soup.get_text(separator=' ', strip=True)
-            if len(text) < 1500 and proxy_template:
+            text_without_images = re.sub(r'!\[.*?\]\(.*?\)', '', text)
+            proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or "https://r.jina.ai/{url}"
+            if len(text_without_images) < 1500 and proxy_template:
                 proxied_url = proxy_template.format(url=url)
                 resp = requests.get(proxied_url, timeout=25)
                 if resp.status_code == 200:
@@ -91,9 +93,7 @@ class WebScraper:
             return (text, None) if return_error else text
         except Exception as e:
             try:
-                proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or (
-                    "https://r.jina.ai/{url}" if os.environ.get("SCRAPER_USE_JINA") == "1" else None
-                )
+                proxy_template = os.environ.get("SCRAPER_TEXT_PROXY") or "https://r.jina.ai/{url}"
                 if proxy_template and url:
                     proxied_url = proxy_template.format(url=url)
                     resp = requests.get(proxied_url, timeout=25)
