@@ -66,7 +66,7 @@ class WebScraper:
             response.raise_for_status()
             content_type = (response.headers.get("Content-Type") or "").lower()
             if "text/plain" in content_type and response.text:
-                text = response.text.strip()[:15000]
+                text = response.text.strip()[:40000]
                 return (text, None) if return_error else text
             soup = BeautifulSoup(response.content, "html.parser")
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
@@ -89,7 +89,7 @@ class WebScraper:
                 resp = requests.get(proxied_url, timeout=25)
                 if resp.status_code == 200:
                     text = (resp.text or "").strip()
-            text = text[:15000]
+            text = text[:40000]
             return (text, None) if return_error else text
         except Exception as e:
             try:
@@ -98,7 +98,7 @@ class WebScraper:
                     proxied_url = proxy_template.format(url=url)
                     resp = requests.get(proxied_url, timeout=25)
                     resp.raise_for_status()
-                    text = (resp.text or "").strip()[:15000]
+                    text = (resp.text or "").strip()[:40000]
                     return (text, None) if return_error else text
             except Exception:
                 pass

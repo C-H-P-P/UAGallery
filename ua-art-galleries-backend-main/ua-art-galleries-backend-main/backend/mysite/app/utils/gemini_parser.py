@@ -28,7 +28,7 @@ class GeminiParser:
         candidates = []
         if self.model:
             candidates.append(self.model.strip())
-        for m in ["gemini-2.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash-002"]:
+        for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
             if m not in candidates:
                 candidates.append(m)
         return candidates
