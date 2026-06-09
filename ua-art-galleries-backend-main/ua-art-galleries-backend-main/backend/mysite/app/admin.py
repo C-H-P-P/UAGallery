@@ -3,8 +3,8 @@ from .models import Gallery, Review, Exhibition, ExhibitionPage
 
 @admin.register(Exhibition)
 class ExhibitionAdmin(admin.ModelAdmin):
-    list_display = ('title', 'gallery', 'start_date', 'end_date', 'is_active')
-    list_filter = ('is_active', 'start_date', 'gallery')
+    list_display = ('title', 'gallery', 'start_date', 'end_date', 'is_active', 'created_at')
+    list_filter = ('is_active', 'start_date', 'created_at', 'gallery')
     search_fields = ('title', 'gallery__name_ua', 'description', 'artists')
     readonly_fields = ('created_at', 'updated_at')
 
