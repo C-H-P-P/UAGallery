@@ -9,7 +9,6 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Скільки найновіших виставок зберігати з однієї галереї за один прогін
 MAX_EXHIBITIONS_PER_GALLERY = 3
 
 
@@ -86,9 +85,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'  Помилок:           {stats["errors"]}'))
         self.stdout.write('=' * 60)
 
-    # =========================================================================
-    # Диспетчер
-    # =========================================================================
 
     def _process_gallery(self, gallery, gemini, debug=False,
                          include_social=False, force=False, max_exhibitions=3):
@@ -109,16 +105,12 @@ class Command(BaseCommand):
         return self._process_website(gallery, gemini, debug=debug,
                                      force=force, max_exhibitions=max_exhibitions)
 
-    # =========================================================================
-    # Стратегія: Website
-    # =========================================================================
 
     def _process_website(self, gallery, gemini, debug=False, force=False, max_exhibitions=3):
         url = gallery.monitoring_url
         scraper = PlaywrightScraper if gallery.needs_js else WebScraper
         self.stdout.write(f'   Скрапер: {"Playwright" if gallery.needs_js else "requests"}')
 
-        # --- Крок 1: отримати текст сторінки ---
         listings_text = self._fetch_text(scraper, url, debug)
         if not listings_text:
             self.stdout.write(self.style.WARNING(f'   ⚠️  Не вдалося отримати текст з {url}'))
@@ -126,13 +118,11 @@ class Command(BaseCommand):
 
         self.stdout.write(f'   Отримано: {len(listings_text)} символів')
 
-        # --- Крок 2: перевірка хешу (чи взагалі щось змінилось) ---
         listings_hash = WebScraper.get_text_hash(listings_text)
         if not force and listings_hash == gallery.last_scraped_hash:
             self.stdout.write('   ✓ Сторінка не змінилась. Пропускаємо.')
             return 0, 0
 
-        # --- Крок 3: Gemini аналізує структуру сторінки ---
         self.stdout.write('   🔍 Аналізуємо структуру...')
         extracted = gemini.extract_exhibition_links(listings_text, url)
 
@@ -142,7 +132,6 @@ class Command(BaseCommand):
 
         created_total, updated_total = 0, 0
 
-        # --- Сценарій А: сторінка вже є списком виставок ---
         if parse_directly:
             self.stdout.write('   📋 Сторінка-список → парсимо напряму (без підсторінок)')
             created, updated = self._parse_and_save(
@@ -152,10 +141,8 @@ class Command(BaseCommand):
             created_total += created
             updated_total += updated
 
-        # --- Сценарій Б: є прямі посилання на конкретні виставки ---
         elif exhibition_pages:
             self.stdout.write(f'   📋 Знайдено підсторінок виставок: {len(exhibition_pages)}')
-            # Беремо тільки перші N — найновіші (Gemini повертає в порядку зверху вниз)
             pages_to_check = exhibition_pages[:max_exhibitions]
             if len(exhibition_pages) > max_exhibitions:
                 self.stdout.write(f'   ℹ️  Обробляємо тільки перші {max_exhibitions} (найновіші)')
@@ -166,13 +153,11 @@ class Command(BaseCommand):
             created_total += created
             updated_total += updated
 
-        # --- Сценарій В: є посилання на розділ виставок (треба зайти глибше) ---
         elif index_pages:
             index_url = index_pages[0]
             self.stdout.write(f'   🔀 Знайдено розділ виставок: {index_url}')
             index_text = self._fetch_text(scraper, index_url, debug)
             if index_text:
-                # Повторно аналізуємо вже сторінку розділу
                 extracted2 = gemini.extract_exhibition_links(index_text, index_url)
                 if extracted2.get('parse_listing_directly'):
                     self.stdout.write('   📋 Розділ є списком → парсимо напряму')
@@ -188,7 +173,6 @@ class Command(BaseCommand):
                         force=force, max_exhibitions=max_exhibitions
                     )
                 else:
-                    # Останній fallback — парсимо що є
                     self.stdout.write('   ℹ️  Парсимо розділ напряму (fallback)')
                     created, updated = self._parse_and_save(
                         gallery, gemini, index_text,
@@ -197,7 +181,6 @@ class Command(BaseCommand):
                 created_total += created
                 updated_total += updated
 
-        # --- Сценарій Г: нічого не знайдено — парсимо головну напряму ---
         else:
             self.stdout.write('   ℹ️  Структура не визначена → парсимо сторінку напряму (fallback)')
             created, updated = self._parse_and_save(
@@ -207,7 +190,6 @@ class Command(BaseCommand):
             created_total += created
             updated_total += updated
 
-        # Оновлюємо хеш головної сторінки
         gallery.last_scraped_hash = listings_hash
         gallery.save(update_fields=['last_scraped_hash'])
 
@@ -236,7 +218,6 @@ class Command(BaseCommand):
                 continue
 
             self.stdout.write('       🤖 Змінилась! Передаємо Gemini...')
-            # Одна підсторінка = одна виставка, тому max=1
             created, updated = self._parse_and_save(
                 gallery, gemini, page_text, source_url=link, max_exhibitions=1
             )
@@ -251,9 +232,6 @@ class Command(BaseCommand):
 
         return created_total, updated_total
 
-    # =========================================================================
-    # Стратегія: Instagram
-    # =========================================================================
 
     def _process_instagram(self, gallery, gemini, force=False, max_exhibitions=3):
         username = gallery.instagram_username.strip()
@@ -283,9 +261,6 @@ class Command(BaseCommand):
         gallery.save(update_fields=['last_scraped_hash'])
         return created, updated
 
-    # =========================================================================
-    # Стратегія: Facebook
-    # =========================================================================
 
     def _process_facebook(self, gallery, gemini, force=False, max_exhibitions=3):
         self.stdout.write(f'   Facebook: {gallery.monitoring_url}')
@@ -308,9 +283,6 @@ class Command(BaseCommand):
         gallery.save(update_fields=['last_scraped_hash'])
         return created, updated
 
-    # =========================================================================
-    # Збереження
-    # =========================================================================
 
     def _parse_and_save(self, gallery, gemini, text, source_url="", max_exhibitions=3):
         exhibitions_data = gemini.extract_exhibitions(
@@ -351,9 +323,6 @@ class Command(BaseCommand):
 
         return created_count, updated_count
 
-    # =========================================================================
-    # Хелпери
-    # =========================================================================
 
     @staticmethod
     def _fetch_text(scraper_class, url, debug=False):

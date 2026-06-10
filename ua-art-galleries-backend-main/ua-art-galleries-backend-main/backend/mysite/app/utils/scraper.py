@@ -72,7 +72,6 @@ class WebScraper:
             for tag in soup(['script', 'style', 'nav', 'footer', 'header']):
                 tag.decompose()
             
-            # Зберігаємо картинки для парсера
             for img in soup.find_all('img'):
                 src = img.get('src', '').strip()
                 alt = img.get('alt', '').strip()

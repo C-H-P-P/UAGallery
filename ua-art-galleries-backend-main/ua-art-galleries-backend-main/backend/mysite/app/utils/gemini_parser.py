@@ -159,7 +159,6 @@ class GeminiParser:
                 'index_pages': [u for u in result.get('index_pages', []) if isinstance(u, str) and u.startswith('http')],
                 'exhibition_pages': [u for u in result.get('exhibition_pages', []) if isinstance(u, str) and u.startswith('http')],
             }
-        # Якщо повернув просто список — це exhibition_pages
         elif isinstance(result, list):
             return {
                 'parse_listing_directly': False,
@@ -220,7 +219,6 @@ class GeminiParser:
         result = self._parse_list(raw)
         exhibitions = [item for item in result if isinstance(item, dict) and item.get("title")]
 
-        # Обрізаємо на рівні Python як додатковий захист
         if max_exhibitions and len(exhibitions) > max_exhibitions:
             exhibitions = exhibitions[:max_exhibitions]
 
