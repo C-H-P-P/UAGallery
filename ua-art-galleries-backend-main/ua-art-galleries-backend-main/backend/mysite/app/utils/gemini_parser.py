@@ -102,19 +102,7 @@ class GeminiParser:
         return []
 
     def extract_exhibition_links(self, page_text: str, base_url: str) -> dict:
-        """
-        Аналізує сторінку і повертає:
-        {
-          "parse_listing_directly": True/False,  -- якщо True, не треба ходити на підсторінки
-          "index_pages": [...],                  -- загальні розділи (якщо моніторинг URL — головна)
-          "exhibition_pages": [...],             -- прямі посилання на окремі виставки
-        }
-
-        Логіка вибору в run_detector:
-          parse_listing_directly=True  → парсимо поточну сторінку напряму (економія запитів)
-          exhibition_pages є           → заходимо тільки на ТІ сторінки
-          index_pages є                → спочатку заходимо на розділ, потім повторно шукаємо
-        """
+        
         if not self.client:
             logger.error('GEMINI_API_KEY не знайдено.')
             return {'parse_listing_directly': False, 'index_pages': [], 'exhibition_pages': []}
@@ -169,13 +157,7 @@ class GeminiParser:
         return {'parse_listing_directly': False, 'index_pages': [], 'exhibition_pages': []}
 
     def extract_exhibitions(self, text: str, gallery_name: str, max_exhibitions: int = 3) -> list[dict]:
-        """
-        Парсить текст і повертає список виставок.
-
-        max_exhibitions: скільки максимум виставок повертати.
-                         За замовчуванням 3 — лише актуальні/найновіші.
-                         Передай None щоб знімати обмеження.
-        """
+        
         if not self.client:
             logger.error("GEMINI_API_KEY не знайдено. Парсинг неможливий.")
             return []
