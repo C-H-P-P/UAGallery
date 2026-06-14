@@ -158,17 +158,27 @@ class GoogleLoginView(APIView):
 
     def post(self, request):
         google_id_token = request.data.get("google_id_token")
-        if not google_id_token:
-            return Response({"detail": "google_id_token is required"}, status=status.HTTP_400_BAD_REQUEST)
+        google_access_token = request.data.get("google_access_token")
+        
+        if not google_id_token and not google_access_token:
+            return Response({"detail": "google_id_token or google_access_token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         client_id = os.environ.get("GOOGLE_CLIENT_ID") or getattr(settings, "GOOGLE_CLIENT_ID", None)
 
         try:
-            idinfo = id_token.verify_oauth2_token(
-                google_id_token,
-                google_requests.Request(),
-                client_id
-            )
+            if google_id_token:
+                idinfo = id_token.verify_oauth2_token(
+                    google_id_token,
+                    google_requests.Request(),
+                    client_id
+                )
+            else:
+                import requests as req
+                res = req.get(f"https://www.googleapis.com/oauth2/v3/userinfo?access_token={google_access_token}")
+                if res.status_code != 200:
+                    return Response({"detail": "Invalid google_access_token"}, status=status.HTTP_400_BAD_REQUEST)
+                idinfo = res.json()
+
             email = idinfo.get("email")
             if not email:
                 return Response({"detail": "Email not found in token"}, status=status.HTTP_400_BAD_REQUEST)
