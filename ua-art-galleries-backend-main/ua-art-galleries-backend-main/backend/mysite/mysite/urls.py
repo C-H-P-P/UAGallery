@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponse
 
-from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView, run_csv_import_view, run_ai_detector_view
+from app.views import GalleryListView, GalleryDetailView, contentful_webhook, FavoriteListView, FavoriteToggleView, ReviewListCreateView, ReviewDeleteView, run_csv_import_view, run_ai_detector_view
 from app.auth_views import MinimalLoginView, MinimalRegisterView, UserDetailView, GoogleLoginView, VerifyEmailView
 
 def health_check(request):
@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/galleries/', GalleryListView.as_view(), name='gallery-list'),
     path('api/galleries/<slug:slug>/', GalleryDetailView.as_view(), name='gallery-detail'),
     path('api/galleries/<slug:slug>/reviews/', ReviewListCreateView.as_view(), name='gallery-reviews'),
+    path('api/reviews/<int:pk>/', ReviewDeleteView.as_view(), name='review-delete'),
 
                            
     path('api/favorites/', FavoriteListView.as_view(), name='favorites-list'),

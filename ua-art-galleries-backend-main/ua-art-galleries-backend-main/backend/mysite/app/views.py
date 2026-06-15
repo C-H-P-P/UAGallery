@@ -97,6 +97,21 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         serializer.save(user=self.request.user, gallery=gallery)
 
 
+class ReviewDeleteView(generics.DestroyAPIView):
+    """
+    DELETE /api/reviews/<id>/ - Видалити свій відгук
+    """
+    queryset = Review.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        review = self.get_object()
+        if review.user != request.user:
+            return Response({"detail": "Ви можете видаляти лише свої відгуки."}, status=status.HTTP_403_FORBIDDEN)
+        review.delete()
+        return Response({"detail": "Відгук видалено."}, status=status.HTTP_204_NO_CONTENT)
+
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
